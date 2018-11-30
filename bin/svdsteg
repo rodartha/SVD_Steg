@@ -17,6 +17,22 @@ stylecheck() {
 }
 
 case $1 in
+	"embed")
+		if [ $# -ne 3 ]; then
+			usage
+			exit 1
+		fi
+		echo "Embedding Message"
+		svd_steg -e $2 $3
+		;;
+	"decrypt")
+		if [ $# -ne 2 ]; then
+			usage
+			exit 1
+		fi
+		echo "Decrypting Message"
+		svd_steg -d $2
+		;;
 	"style")
 		stylecheck
 		;;
