@@ -1,7 +1,8 @@
-"""Steganographer Tool"""
+"""Steganographer Tool."""
 import os
+import imageio
 import click
-from steganographer.steganographer import Steganographer
+from svd_steg.steganographer import Steganographer
 
 
 # TODO: Fix help messages in click
@@ -19,7 +20,6 @@ def main(embed, decode, message_file, image_file):
         method = "decode"
 
     input_dir = "input"
-    output_dir = "output"
 
     # Load Image
     if not os.path.exists(input_dir):
@@ -33,15 +33,17 @@ def main(embed, decode, message_file, image_file):
 
     # Load Message
     if not os.path.isfile(input_dir + '/' + message_file):
-    	print("Error: Message file " 
-    		  + message_file + " does not exit in input folder.")
+        print("Error: Message file "
+              + message_file + " does not exit in input folder.")
     file = open(input_dir + '/' + message_file, 'r')
     message_in = file.read()
 
     # Run Steganography Tool
-    stego = Steganographer(method, image_in, image_file, message_in, message_file)
+    stego = Steganographer(method, image_in,
+                           image_file, message_in, message_file)
     stego.run()
 
+
 if __name__ == '__main__':
-	# pylint: disable=no-value-for-parameter
-	main()
+    # pylint: disable=no-value-for-parameter
+    main()

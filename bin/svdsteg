@@ -11,9 +11,9 @@ usage() {
 
 stylecheck() {
 	set -x
-	pycodestyle stego_tool
-	pydocstyle stego_tool
-	pylint --reports=n --disable=cyclic-import stego_tool
+	pycodestyle svd_steg
+	pydocstyle svd_steg
+	pylint --reports=n --disable=cyclic-import svd_steg
 }
 
 case $1 in

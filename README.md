@@ -5,7 +5,8 @@ To set up a python environment for this project please run
 ````
 python3 -m venv env
 ````
-Also, remember to activate your virtual environment whenever using/working on the project:
+### Important:
+Also, remember to activate your virtual environment EVERYTIME you are using/working on the project:
 ````
 source env/bin/activate
 ````
@@ -13,6 +14,8 @@ Also make sure to install everything from setup.py
 ````
 pip install -e .
 ````
+You may get a small error message for imageio installation but ignore it.
+
 Make sure to make the script executable
 ````
 chmod +x bin/svdsteg

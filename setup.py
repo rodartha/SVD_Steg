@@ -21,7 +21,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'svd_steg = svd_steg.steganographer.__main__:main',
+            'svd_steg = svd_steg.steganography.__main__:main',
         ]
     },
 )
