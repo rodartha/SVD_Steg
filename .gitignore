@@ -1,0 +1,11 @@
+*~
+*.log
+*.egg-info/
+*.pyc
+.DS_Store
+__pycache__/
+env/
+var/
+
+# vim files
+**/*.sw*
