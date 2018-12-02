@@ -2,6 +2,8 @@
 import os
 import numpy
 import imageio
+import math
+import random
 from numpy import dot
 from svd_steg.helper import progress_bar
 
@@ -20,9 +22,7 @@ class Steganographer:
         self.image = image_in.astype(numpy.int32)
         self.image_file = image_file
         self.method = method
-        self.embedded_image = numpy.zeros(self.image.shape)
-
-        print (self.method)
+        self.embedded_image = self.image
 
     def output_embedded_image(self):
         """Ouput an embedded image as IMAGENAME_steg."""
@@ -56,68 +56,110 @@ class Steganographer:
     def computeSVD(self, image_block):
         """compute the SVD of a single image block (will add input later)"""
 
-        U,s,VT = numpy.linalg.svd(image_block)
+        U, s, VT = numpy.linalg.svd(image_block)
 
         # create blank m x n matrix
         Sigma = numpy.zeros((image_block.shape[0], image_block.shape[1]))
         # populate Sigma with n x n diagonal matrix
         Sigma[:image_block.shape[1], :image_block.shape[1]] = numpy.diag(s)
 
-        '''
-        print(U)
-        print()
-        print(Sigma)
-        print()
-        print(VT)
-        print()
-        '''
-
-        # reconstruction
-        '''
-        B = U.dot(Sigma.dot(VT))
-
-        print()
-        print(B)
-        '''
-
         return [U, Sigma, VT]
 
     def embed(self):
         """Embed message into an image."""
 
-        # break image into blockSize
 
-        # loop
-            # through each block and compute svd
-            # embed message bits
-            # ensure U is orthogonal
+        #A = []
 
-        # testing on a single block, with blockSize = n for now - ALEC
-        A = []
-        blockSize = 8
+        # Set block size
+        block_size = 8
+        cols_protected = 2
 
-        # create the nxn array
-        for i in range(blockSize):
-            A.append(numpy.arange(blockSize*i, blockSize*(i+1)))
+        num_rows = ((self.embedded_image).shape)[0]
+        num_cols = ((self.embedded_image).shape)[1]
+
+        # bits per block
+        bpb = ((block_size - cols_protected-1)*(block_size - cols_protected))/2
+
+        # num blocks possible
+        num_blocks = (num_rows * num_cols)/(block_size * block_size)
+
+        img_cap = math.floor(bpb*num_blocks)
+
+        # take this with a grain of salt for now, not sure if accurate
+        print("MAX IMAGE HIDING CAPACITY: " + str(img_cap))
+        print()
+
+        '''
+        GENERATE A SEQUENTIAL MATRIX block_size*block_size FOR TESTING
+
+        for i in range(block_size*3):
+            A.append(numpy.arange(block_size*i*3, block_size*(i+1)*3))
 
         A = numpy.array(A)
 
-        # compute the SVD
-        res = self.computeSVD(A)
+        self.embedded_image = A
 
-        print(res[0])
-        print()
-        print(res[1])
-        print()
-        print(res[2])
 
-        # reconstruction
+        print(A)
         '''
-        B = U.dot(Sigma.dot(VT))
 
-        print()
-        print(B)
-        '''
+        # calculate the maximum number of blocks per row/col
+        row_lim = math.floor(num_rows/block_size)
+        print("row_lim: " + str(row_lim))
+        col_lim = math.floor(num_cols/block_size)
+        print("col_lim: " + str(col_lim))
+
+        for j in range(col_lim):
+            for i in range(row_lim):
+
+                # isolate the block
+                block = self.embedded_image[block_size*i:block_size*(i+1), j*block_size:block_size*(j+1)]
+
+                '''
+                TO TEST THE BLOCKING WITH RANDOM MODIFICATIONS OF EACH BLOCK
+
+                print(block)
+                print()
+
+                block *= random.randint(1,5)
+                block %= 256
+
+                print(block)
+                print()
+                '''
+
+                # compute the SVD
+                #res = self.computeSVD(block)
+
+                '''
+                [0] = U
+                [1] = Sigma
+                [2] = VT
+
+                print(res[0])
+                print()
+                print(res[1])
+                print()
+                print(res[2])
+                '''
+
+                # modify U matrix
+
+                # Maintain orthogonality
+
+                # reconstruction
+                '''
+                B = U.dot(Sigma.dot(VT))
+
+                print()
+                print(B)
+                '''
+
+                # normalize values to be between 0-255
+
+                # reassign the block after modification
+                self.embedded_image[block_size*i:block_size*(i+1), j*block_size:block_size*(j+1)] = block
 
         return None
 
@@ -130,9 +172,15 @@ class Steganographer:
         """Run Steganography class."""
         if self.method == "embed":
             print("RUNNING steganographer with METHOD embed")
+            print()
+            print("Image Dimensions: " + str((self.image).shape))
+            print()
+            #print(self.image)
+            print()
             self.embed()
         else:
             print("RUNNING steganographer with METHOD decode")
+            print()
             self.decode()
 
-        #self.output()
+        self.output()

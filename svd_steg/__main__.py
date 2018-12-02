@@ -15,11 +15,11 @@ def main(embed, decode, image_file, message_file):
     """Run Steganographer tool."""
     method = ""
     if embed:
-        print ("METHOD embed")
+        print("METHOD embed")
         method = "embed"
     elif decode:
         method = "decode"
-        print ("METHOD decode")
+        print("METHOD decode")
 
     input_dir = "input"
 
@@ -44,7 +44,7 @@ def main(embed, decode, image_file, message_file):
 
     # Run Steganography Tool
     print(method)
-    stego = Steganographer(method,image_in,
+    stego = Steganographer(method, image_in,
                            image_file, message_in, message_file)
     stego.run()
 
