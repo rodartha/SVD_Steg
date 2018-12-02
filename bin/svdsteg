@@ -4,8 +4,8 @@
 set -e
 
 usage() {
-  echo "Usage: $0 (encrypt|decrypt|style)"
-  echo "If encrypt $1 (message-file.txt) $2 (your-image.png)"
+  echo "Usage: $0 (embed|decrypt|style)"
+  echo "If embed $1 (message-file.txt) $2 (your-image.png)"
   echo "If decrypt $1 (your-image.png)"
 }
 
