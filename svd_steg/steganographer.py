@@ -68,10 +68,13 @@ class Steganographer:
     def computeSVD(self, image_block):
         """compute the SVD of a single image block (will add input later)"""
         """
-        index to image_block[0] because the color values are the same and 
+        index to image_block[0] because the color values are the same and
         Therefore can treat this as a 2D matrix rather than 3D.
         """
-        U, s, VT = numpy.linalg.svd(image_block[0])
+
+        # not quite sure why you did that, its already a 2d matrix
+        #print(image_block)
+        U, s, VT = numpy.linalg.svd(image_block)
 
         # create blank m x n matrix
         Sigma = numpy.zeros((U.shape[1], VT.shape[0]))
@@ -81,8 +84,10 @@ class Steganographer:
         dimensions correct.
         """
         Sigma[:VT.shape[0], :VT.shape[0]] = numpy.diag(s)
+        '''
         print("SIGMA")
         print(Sigma)
+        '''
 
         return [U, Sigma, VT]
 
@@ -163,14 +168,15 @@ class Steganographer:
 
                 # rememeber that A = U*Sigma*VT can be made standard using
                 # a matrix that is the identity martix with +-1 as the diaganol values
-                # giving use A = (U*D)*Sigma*(D*VT) because D is its own inverse
-                # and by associativity
+                # giving use A = U*Sigma*V^T = (U*D)*Sigma*(D*VT) because D is its own inverse
+                # and by associativity thus
 
                 for k in range(0, block_size):
-                    if U[1,k] < 0:
-                        U_std[k,0:(block_size-1)] *= -1
-                        VT_prime[k,0:(block_size-1)] *= -1
+                    if U[0,k] < 0:
 
+                        # multiply entire column by -1
+                        U_std[0:(block_size-1),k] *= -1
+                        VT_prime[0:(block_size-1),k] *= -1
 
                 # prepare string for embedding
                 to_embed = ""
@@ -185,26 +191,46 @@ class Steganographer:
                 if to_embed == "":
                     break
 
-                print("EMBEDDING " + to_embed)
+                '''
+                print("EMBEDDING: ")
+                print(to_embed)
                 print()
                 print(block)
                 print()
+                '''
 
                 U_mk = U_std
+
+                '''
+                print("U-Matrix before embedding: ")
+                print(U_mk)
+                '''
 
                  # m is columns, n is rows:
                 num_orthog_bits = 0
                 message_index = 0
                 for m in range(0, block_size):
-                    for n in range(0, block_size)
-                        if m == 0:
-                            U_mk[n][m] = U_std[n][m]
-                        else:
-                            if n < (block_size - num_orthog_bits):
-                                U_mk[n][m] = to_embed[message_index] * math.fabs(U_std[n][m])
-                                message_index += 1
+                    for n in range(0, block_size):
+
+                        # need to make this better but works for num_rows
+                        # only embed as long as the message still has bits to embed
+                        if (message_index < len(to_embed)):
+                            # protect column
+                            if m < cols_protected:
+                                U_mk[n][m] = U_std[n][m]
+
+                            # embed bits
+                            elif n < (block_size - num_orthog_bits):
+                                    U_mk[n][m] = to_embed[message_index] * math.fabs(U_std[n][m])
+                                    message_index += 1
+
+                            # make orthogonal
                             else:
-                                # TODO: function that creates orthogonal values
+                                # place holder
+                                message_index += 1
+                                message_index -= 1
+                                #print("TODO")# TODO: function that creates orthogonal values
+
                     num_orthog_bits += 1
 
 
