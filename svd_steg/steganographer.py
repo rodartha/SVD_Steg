@@ -54,15 +54,35 @@ class Steganographer:
         """ Create blocks """
         return None
 
+    def binarize_message(self):
+        binary_message = ''.join(format(ord(x), 'b') for x in self.message)
+        binary_list = []
+        for character in binary_message:
+            if character == '0':
+                binary_list.append(-1)
+            else:
+                binary_list.append(1)
+
+        return binary_list
+
     def computeSVD(self, image_block):
         """compute the SVD of a single image block (will add input later)"""
-
-        U, s, VT = numpy.linalg.svd(image_block)
+        """
+        index to image_block[0] because the color values are the same and 
+        Therefore can treat this as a 2D matrix rather than 3D.
+        """
+        U, s, VT = numpy.linalg.svd(image_block[0])
 
         # create blank m x n matrix
-        Sigma = numpy.zeros((image_block.shape[0], image_block.shape[1]))
+        Sigma = numpy.zeros((U.shape[1], VT.shape[0]))
         # populate Sigma with n x n diagonal matrix
-        Sigma[:image_block.shape[1], :image_block.shape[1]] = numpy.diag(s)
+        """
+        Fixed this so it now properly populates Sigma by making the
+        dimensions correct.
+        """
+        Sigma[:VT.shape[0], :VT.shape[0]] = numpy.diag(s)
+        print("SIGMA")
+        print(Sigma)
 
         return [U, Sigma, VT]
 
@@ -112,7 +132,7 @@ class Steganographer:
         print("col_lim: " + str(col_lim))
 
         # convert message to bits to be embeded (currenty only supports block size 8)
-        binary_message = ''.join(format(ord(x), 'b') for x in self.message)
+        binary_message = self.binarize_message()
         print(binary_message)
         print()
 
@@ -146,10 +166,10 @@ class Steganographer:
                 # giving use A = (U*D)*Sigma*(D*VT) because D is its own inverse
                 # and by associativity
 
-                for k in range(block_size):
+                for k in range(0, block_size):
                     if U[1,k] < 0:
-                        U_std[k,0:block_size-1] *= -1
-                        VT_prime[k,0:block_size-1] *= -1
+                        U_std[k,0:(block_size-1)] *= -1
+                        VT_prime[k,0:(block_size-1)] *= -1
 
 
                 # prepare string for embedding
@@ -169,6 +189,23 @@ class Steganographer:
                 print()
                 print(block)
                 print()
+
+                U_mk = U_std
+
+                 # m is columns, n is rows:
+                num_orthog_bits = 0
+                message_index = 0
+                for m in range(0, block_size):
+                    for n in range(0, block_size)
+                        if m == 0:
+                            U_mk[n][m] = U_std[n][m]
+                        else:
+                            if n < (block_size - num_orthog_bits):
+                                U_mk[n][m] = to_embed[message_index] * math.fabs(U_std[n][m])
+                                message_index += 1
+                            else:
+                                # TODO: function that creates orthogonal values
+                    num_orthog_bits += 1
 
 
                 '''
