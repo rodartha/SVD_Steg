@@ -166,7 +166,7 @@ class Steganographer:
                 # giving use A = (U*D)*Sigma*(D*VT) because D is its own inverse
                 # and by associativity
 
-                for k in range(block_size):
+                for k in range(0, block_size):
                     if U[1,k] < 0:
                         U_std[k,0:(block_size-1)] *= -1
                         VT_prime[k,0:(block_size-1)] *= -1
@@ -189,6 +189,23 @@ class Steganographer:
                 print()
                 print(block)
                 print()
+
+                U_mk = U_std
+
+                 # m is columns, n is rows:
+                num_orthog_bits = 0
+                message_index = 0
+                for m in range(0, block_size):
+                    for n in range(0, block_size)
+                        if m == 0:
+                            U_mk[n][m] = U_std[n][m]
+                        else:
+                            if n < (block_size - num_orthog_bits):
+                                U_mk[n][m] = to_embed[message_index] * math.fabs(U_std[n][m])
+                                message_index += 1
+                            else:
+                                # TODO: function that creates orthogonal values
+                    num_orthog_bits += 1
 
 
                 '''
