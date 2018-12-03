@@ -4,6 +4,7 @@ import numpy
 import imageio
 import math
 import random
+import binascii
 from numpy import dot
 from svd_steg.helper import progress_bar
 
@@ -79,7 +80,7 @@ class Steganographer:
         num_cols = ((self.embedded_image).shape)[1]
 
         # bits per block
-        bpb = ((block_size - cols_protected-1)*(block_size - cols_protected))/2
+        bpb = math.floor(((block_size - cols_protected-1)*(block_size - cols_protected))/2)
 
         # num blocks possible
         num_blocks = (num_rows * num_cols)/(block_size * block_size)
@@ -110,6 +111,11 @@ class Steganographer:
         col_lim = math.floor(num_cols/block_size)
         print("col_lim: " + str(col_lim))
 
+        # convert message to bits to be embeded (currenty only supports block size 8)
+        binary_message = ''.join(format(ord(x), 'b') for x in self.message)
+        print(binary_message)
+        print()
+
         for j in range(col_lim):
             for i in range(row_lim):
 
@@ -130,7 +136,40 @@ class Steganographer:
                 '''
 
                 # compute the SVD
-                #res = self.computeSVD(block)
+                U, S, VT = self.computeSVD(block)
+
+                U_std = U
+                VT_prime = VT
+
+                # rememeber that A = U*Sigma*VT can be made standard using
+                # a matrix that is the identity martix with +-1 as the diaganol values
+                # giving use A = (U*D)*Sigma*(D*VT) because D is its own inverse
+                # and by associativity
+
+                for k in range(block_size):
+                    if U[1,k] < 0:
+                        U_std[k,0:block_size-1] *= -1
+                        VT_prime[k,0:block_size-1] *= -1
+
+
+                # prepare string for embedding
+                to_embed = ""
+                if len(binary_message) >= bpb:
+                    to_embed = binary_message[0:bpb]
+                    binary_message = binary_message[bpb:]
+                else:
+                    to_embed = binary_message
+                    binary_message = ""
+
+                # for testing
+                if to_embed == "":
+                    break
+
+                print("EMBEDDING " + to_embed)
+                print()
+                print(block)
+                print()
+
 
                 '''
                 [0] = U
