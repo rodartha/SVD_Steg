@@ -232,8 +232,12 @@ class Steganographer:
 
                             # make orthogonal
                             else:
-                                # TODO: function that creates orthogonal values
-                                pass
+                                coefficients = numpy.zeros((num_orthog_bits - 1, num_orthog_bits - 1))
+                                solutions = numpy.zeros(((num_orthog_bits - 1), 1))
+                                for x in range(0,num_orthog_bits):
+                                    for y in range(0, num_orthog_bits):
+                                        coefficients[x,y] = U_mk[y+block_size+1-num_orthog_bits,x]
+                                    solutions[x:1] = -dot(U_mk[1:block_size + 1 - num_orthog_bits,num_orthog_bits],U_mk[1:block_size + 1 - num_orthog_bits,x])
 
 
                     num_orthog_bits += 1
@@ -261,7 +265,7 @@ class Steganographer:
 
                 # reconstruction
 
-                #block = U_mk.dot(S.dot(VT_prime))
+                block = U_mk.dot(S.dot(VT_prime))
 
                 # reassign the block after modification
                 self.embedded_image[block_size*i:block_size*(i+1), j*block_size:block_size*(j+1)] = block
