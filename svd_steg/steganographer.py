@@ -5,6 +5,8 @@ import imageio
 import math
 import random
 import binascii
+import pprint
+
 from numpy import dot
 from svd_steg.helper import progress_bar
 
@@ -55,6 +57,7 @@ class Steganographer:
         return None
 
     def binarize_message(self):
+        """ Turn string into binary """
         binary_message = ''.join(format(ord(x), 'b') for x in self.message)
         binary_list = []
         for character in binary_message:
@@ -67,23 +70,17 @@ class Steganographer:
 
     def computeSVD(self, image_block):
         """compute the SVD of a single image block (will add input later)"""
-        """
-        index to image_block[0] because the color values are the same and
-        Therefore can treat this as a 2D matrix rather than 3D.
-        """
 
-        # not quite sure why you did that, its already a 2d matrix
         #print(image_block)
         U, s, VT = numpy.linalg.svd(image_block)
 
         # create blank m x n matrix
         Sigma = numpy.zeros((U.shape[1], VT.shape[0]))
-        # populate Sigma with n x n diagonal matrix
-        """
-        Fixed this so it now properly populates Sigma by making the
-        dimensions correct.
-        """
+
+        # populates Sigma by transplating s matrix into main diaganol
+
         Sigma[:VT.shape[0], :VT.shape[0]] = numpy.diag(s)
+
         '''
         print("SIGMA")
         print(Sigma)
@@ -93,7 +90,6 @@ class Steganographer:
 
     def embed(self):
         """Embed message into an image."""
-
 
         #A = []
 
@@ -138,9 +134,10 @@ class Steganographer:
 
         # convert message to bits to be embeded (currenty only supports block size 8)
         binary_message = self.binarize_message()
-        print(binary_message)
-        print()
+        # print(binary_message)
+        # print()
 
+        # looping through each block
         for j in range(col_lim):
             for i in range(row_lim):
 
@@ -174,11 +171,11 @@ class Steganographer:
                 for k in range(0, block_size):
                     if U[0,k] < 0:
 
-                        # multiply entire column by -1
+                        # multiply entire columns by -1
                         U_std[0:(block_size-1),k] *= -1
                         VT_prime[0:(block_size-1),k] *= -1
 
-                # prepare string for embedding
+                # prepare string for embedding (chop up binary)
                 to_embed = ""
                 if len(binary_message) >= bpb:
                     to_embed = binary_message[0:bpb]
@@ -191,74 +188,74 @@ class Steganographer:
                 if to_embed == "":
                     break
 
-                '''
                 print("EMBEDDING: ")
                 print(to_embed)
                 print()
                 print(block)
                 print()
-                '''
 
                 U_mk = U_std
 
                 '''
                 print("U-Matrix before embedding: ")
                 print(U_mk)
+                print()
                 '''
 
                  # m is columns, n is rows:
-                num_orthog_bits = 0
+                num_orthog_bits = 1
                 message_index = 0
                 for m in range(0, block_size):
                     for n in range(0, block_size):
 
-                        # need to make this better but works for num_rows
                         # only embed as long as the message still has bits to embed
-                        if (message_index < len(to_embed)):
-                            # protect column
-                            if m < cols_protected:
-                                U_mk[n][m] = U_std[n][m]
+                        if message_index < len(to_embed):
+
+                            # if last column, dont embed but make orthogonal
+                            if (m == block_size-1):
+                                pass
+
+                                # protect column
+                            elif m < cols_protected:
+                                    U_mk[n][m] = U_std[n][m]
 
                             # embed bits
                             elif n < (block_size - num_orthog_bits):
-                                    U_mk[n][m] = to_embed[message_index] * math.fabs(U_std[n][m])
-                                    message_index += 1
+                                U_mk[n][m] = to_embed[message_index] * math.fabs(U_std[n][m])
+                                message_index += 1
 
                             # make orthogonal
                             else:
-                                # place holder
-                                message_index += 1
-                                message_index -= 1
-                                #print("TODO")# TODO: function that creates orthogonal values
+                                # TODO: function that creates orthogonal values
+                                pass
+
 
                     num_orthog_bits += 1
 
 
-                '''
-                [0] = U
-                [1] = Sigma
-                [2] = VT
-
-                print(res[0])
+                print("U-Matrix after embedding: ")
+                print(U_mk)
                 print()
-                print(res[1])
+
+                # need to figure out orthogonality stuff
+
+                '''  IF YOU WANT TO TEST THE DOT PRODUCT OF TWO COLS
+                testCol1 = U_mk[0:block_size, 0]
+                testCol2 = U_mk[0:block_size, 1]
+                print(testCol1)
                 print()
-                print(res[2])
+                print(testCol2)
+                print()
+                print("dot product")
+                print(dot(testCol1, testCol2))
+                print()
                 '''
 
-                # modify U matrix
-
-                # Maintain orthogonality
+                # normalize
 
                 # reconstruction
-                '''
-                B = U.dot(Sigma.dot(VT))
 
-                print()
-                print(B)
-                '''
-
-                # normalize values to be between 0-255
+                #block = U_mk.dot(S.dot(VT_prime))
 
                 # reassign the block after modification
                 self.embedded_image[block_size*i:block_size*(i+1), j*block_size:block_size*(j+1)] = block
@@ -278,7 +275,7 @@ class Steganographer:
             print("Image Dimensions: " + str((self.image).shape))
             print()
             #print(self.image)
-            print()
+            #print()
             self.embed()
         else:
             print("RUNNING steganographer with METHOD decode")
