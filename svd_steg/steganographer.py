@@ -32,7 +32,14 @@ class Steganographer:
         file_split = self.image_file.split('.')
         output_filename = file_split[0] + '_steg.' + file_split[1]
 
-        imageio.imwrite("output/" + output_filename, self.embedded_image)
+        file_ending = file_split[1]
+        embedded_image = self.embedded_image
+        if file_ending == 'jpg':
+            embedded_image = numpy.zeros([self.embedded_image.shape[0], self.embedded_image.shape[1], 3])
+            for i in range(0, 3):
+                embedded_image[:,:,i] = self.embedded_image
+
+        imageio.imwrite("output/" + output_filename, embedded_image)
 
     def output_decoded_text(self):
         """Output decoded text as IMAGENAME_text.txt."""
@@ -78,8 +85,7 @@ class Steganographer:
         Sigma = numpy.zeros((U.shape[1], VT.shape[0]))
 
         # populates Sigma by transplating s matrix into main diaganol
-
-        Sigma[:VT.shape[0], :VT.shape[0]] = numpy.diag(s)
+        Sigma[:VT.shape[0], :VT.shape[0]] = numpy.diag(numpy.diag(s))
 
         '''
         print("SIGMA")
@@ -267,8 +273,16 @@ class Steganographer:
         # TODO: Implement
         return None
 
+    def format_image(self):
+        file_split = self.image_file.split('.')
+        file_ending = file_split[1]
+        if file_ending == 'jpg':
+            self.image = self.image[:,:,0]
+        self.embedded_image = self.image
+
     def run(self):
         """Run Steganography class."""
+        self.format_image()
         if self.method == "embed":
             print("RUNNING steganographer with METHOD embed")
             print()
