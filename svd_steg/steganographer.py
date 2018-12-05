@@ -6,7 +6,7 @@ import math
 import random
 import binascii
 import pprint
-
+from numpy.linalg import solve
 from numpy import dot
 from svd_steg.helper import progress_bar
 
@@ -32,7 +32,14 @@ class Steganographer:
         file_split = self.image_file.split('.')
         output_filename = file_split[0] + '_steg.' + file_split[1]
 
-        imageio.imwrite("output/" + output_filename, self.embedded_image)
+        file_ending = file_split[1]
+        embedded_image = self.embedded_image
+        if file_ending == 'jpg':
+            embedded_image = numpy.zeros([self.embedded_image.shape[0], self.embedded_image.shape[1], 3])
+            for i in range(0, 3):
+                embedded_image[:,:,i] = self.embedded_image
+
+        imageio.imwrite("output/" + output_filename, embedded_image)
 
     def output_decoded_text(self):
         """Output decoded text as IMAGENAME_text.txt."""
@@ -78,8 +85,7 @@ class Steganographer:
         Sigma = numpy.zeros((U.shape[1], VT.shape[0]))
 
         # populates Sigma by transplating s matrix into main diaganol
-
-        Sigma[:VT.shape[0], :VT.shape[0]] = numpy.diag(s)
+        Sigma[:VT.shape[0], :VT.shape[0]] = numpy.diag(numpy.diag(s))
 
         '''
         print("SIGMA")
@@ -88,6 +94,111 @@ class Steganographer:
 
         return [U, Sigma, VT]
 
+
+    def make_orthogonal(self, U_matrix, cols_protected):
+
+        # get block size
+        block_size = U_matrix.shape[0]
+
+        # set this matrix = block with embedded bits
+        testMatrix = U_matrix
+
+        coeff = [[]]
+        sol = [[]]
+
+        orthog_bits = 1
+
+        # loop through the cols 1...block_size for now
+        for i in range(cols_protected, block_size):
+
+            # handle case that we are on the first column, we simply let coeff the last element
+            # in col0, and sol = the negative dot product of the entries in col0 and col1 up until
+            # the last entry
+            if orthog_bits == 1:
+                coeff = testMatrix[block_size-1, i-1]
+                sol = -dot(testMatrix[0:block_size-1, i-1], testMatrix[0:block_size - 1, i])
+            else:
+
+                # else coeff = the orthog_bits*orthog_bits matrix consisting of
+                # the bottom orthog_bits elements from each column 0...i (non inclusive)
+                coeff = numpy.zeros((orthog_bits, orthog_bits))
+                sol = numpy.zeros((orthog_bits, 1))
+
+                # actually transplant the values into our coeff and sol matrices
+                for j in range(0, i):
+                    #print("j: " + str(j))
+
+                    for k in range(block_size-orthog_bits, block_size):
+                        #print("k: " + str(k))
+                        coeff[j, k-block_size+orthog_bits] = testMatrix[k, j]
+                        #print(coeff)
+
+                    sol[j][0] = -dot(testMatrix[0:block_size-orthog_bits, j], testMatrix[0:block_size - orthog_bits, i])
+
+                    '''
+            print("coefficient matrix")
+            print()
+            print(coeff)
+            print()
+            print("solution matirx:")
+            print()
+            print(sol)
+            print()
+            #print(sol)'''
+
+            # handle the case that that we are not on orth_bits == 1
+            if orthog_bits > 1:
+                res = solve(coeff, sol)
+                #print("res: ")
+                #print(res)
+
+                # turns a matrix of matrices into a single matrix
+                res = res.ravel()
+
+                # replace the unkown values in the matrix
+                testMatrix[block_size-orthog_bits:block_size, i] = res
+
+                #print("after embedding cycle: " + str(i))
+                #print(testMatrix)
+                #print("testing dot products")
+
+                # test that all dot product are 0 and it is in fact orthogonal
+                for g in range(0, i):
+                    dotprod = -dot(testMatrix[0:block_size, g], testMatrix[0:block_size, i])
+                    #print(dotprod)
+                    assert(math.fabs(dotprod) < .000001)
+
+            # handle case that we have just 1 orthogonal bit
+            else:
+                res = sol/coeff
+                testMatrix[block_size-1, i] = res
+
+                #print("res: ")
+                #print(res)
+                #print()
+
+                #print("after embedding cycle: " + str(i))
+                #print(testMatrix)
+
+                #print("testing dot products")
+
+                # again test dot products
+                for g in range(0, i):
+                    dotprod = -dot(testMatrix[0:block_size, g], testMatrix[0:block_size, i])
+                    #print(dotprod)
+                    assert(math.fabs(dotprod) < .000001)
+
+            print()
+
+            # increment orth bits for every column we handle
+            orthog_bits += 1
+
+
+        #print("final:")
+        #print(testMatrix)
+        return testMatrix
+
+
     def embed(self):
         """Embed message into an image."""
 
@@ -95,13 +206,15 @@ class Steganographer:
 
         # Set block size
         block_size = 8
-        cols_protected = 2
+        cols_protected = 1
 
         num_rows = ((self.embedded_image).shape)[0]
         num_cols = ((self.embedded_image).shape)[1]
 
         # bits per block
-        bpb = math.floor(((block_size - cols_protected-1)*(block_size - cols_protected))/2)
+        #bpb = math.floor(((block_size - cols_protected-1)*(block_size - cols_protected))/2)
+        # hardcoded for now for an 8x8 matrix, math wasnt working quite right
+        bpb = 27
 
         # num blocks possible
         num_blocks = (num_rows * num_cols)/(block_size * block_size)
@@ -111,20 +224,6 @@ class Steganographer:
         # take this with a grain of salt for now, not sure if accurate
         print("MAX IMAGE HIDING CAPACITY: " + str(img_cap))
         print()
-
-        '''
-        GENERATE A SEQUENTIAL MATRIX block_size*block_size FOR TESTING
-
-        for i in range(block_size*3):
-            A.append(numpy.arange(block_size*i*3, block_size*(i+1)*3))
-
-        A = numpy.array(A)
-
-        self.embedded_image = A
-
-
-        print(A)
-        '''
 
         # calculate the maximum number of blocks per row/col
         row_lim = math.floor(num_rows/block_size)
@@ -144,19 +243,6 @@ class Steganographer:
                 # isolate the block
                 block = self.embedded_image[block_size*i:block_size*(i+1), j*block_size:block_size*(j+1)]
 
-                '''
-                TO TEST THE BLOCKING WITH RANDOM MODIFICATIONS OF EACH BLOCK
-
-                print(block)
-                print()
-
-                block *= random.randint(1,5)
-                block %= 256
-
-                print(block)
-                print()
-                '''
-
                 # compute the SVD
                 U, S, VT = self.computeSVD(block)
 
@@ -168,12 +254,13 @@ class Steganographer:
                 # giving use A = U*Sigma*V^T = (U*D)*Sigma*(D*VT) because D is its own inverse
                 # and by associativity thus
 
+                # should test that this is working properly
                 for k in range(0, block_size):
                     if U[0,k] < 0:
 
                         # multiply entire columns by -1
-                        U_std[0:(block_size-1),k] *= -1
-                        VT_prime[0:(block_size-1),k] *= -1
+                        U_std[0:block_size,k] *= -1
+                        VT_prime[0:block_size,k] *= -1
 
                 # prepare string for embedding (chop up binary)
                 to_embed = ""
@@ -187,6 +274,10 @@ class Steganographer:
                 # for testing
                 if to_embed == "":
                     break
+
+                print("original block")
+                print()
+                print(block)
 
                 print("EMBEDDING: ")
                 print(to_embed)
@@ -217,46 +308,60 @@ class Steganographer:
 
                                 # protect column
                             elif m < cols_protected:
-                                    U_mk[n][m] = U_std[n][m]
+                                    U_mk[n, m] = U_std[n, m]
 
                             # embed bits
                             elif n < (block_size - num_orthog_bits):
-                                U_mk[n][m] = to_embed[message_index] * math.fabs(U_std[n][m])
+                                U_mk[n,m] = to_embed[message_index] * math.fabs(U_std[n,m])
                                 message_index += 1
 
+                            '''
                             # make orthogonal
                             else:
-                                # TODO: function that creates orthogonal values
-                                pass
-
+                                coefficients = numpy.zeros((num_orthog_bits - 1, num_orthog_bits - 1))
+                                solutions = numpy.zeros(((num_orthog_bits - 1), 1))
+                                for x in range(0,num_orthog_bits):
+                                    for y in range(0, num_orthog_bits):
+                                        coefficients[x,y] = U_mk[y+block_size+1-num_orthog_bits,x]
+                                    solutions[x:1] = -dot(U_mk[1:block_size + 1 - num_orthog_bits,num_orthog_bits],U_mk[1:block_size + 1 - num_orthog_bits,x])
+                            '''
 
                     num_orthog_bits += 1
-
 
                 print("U-Matrix after embedding: ")
                 print(U_mk)
                 print()
 
-                # need to figure out orthogonality stuff
+                res = self.make_orthogonal(U_mk, cols_protected)
 
-                '''  IF YOU WANT TO TEST THE DOT PRODUCT OF TWO COLS
-                testCol1 = U_mk[0:block_size, 0]
-                testCol2 = U_mk[0:block_size, 1]
-                print(testCol1)
+                print("U-Matrix after making orthogonal: ")
+                print(res)
                 print()
-                print(testCol2)
-                print()
-                print("dot product")
-                print(dot(testCol1, testCol2))
-                print()
-                '''
 
-                # normalize
 
-                # reconstruction
+                # this is where i imagine something is going wrong!!
 
-                #block = U_mk.dot(S.dot(VT_prime))
+                for x in range(0, block_size):
+                    norm_factor = math.sqrt(dot(res[0:block_size, x],res[0:block_size, x]))
+                    for y in range(0, block_size):
+                        res[y,x] /= norm_factor
 
+                block = res.dot(S.dot(VT_prime))
+                block = numpy.round(block)
+                #block = block.astype(numpy.uint8)
+
+                for x in range(0, block_size):
+                    for y in range(0, block_size):
+                        if block[x, y] > 128:
+                            block[x, y] = 128
+                        if block[x, y] < -127:
+                            block[x, y] = -127
+
+
+                block = block + 127
+                #block = block.astype(numpy.uint8)
+                print("U matrix after normalizing and rounding")
+                print(block)
                 # reassign the block after modification
                 self.embedded_image[block_size*i:block_size*(i+1), j*block_size:block_size*(j+1)] = block
 
@@ -267,8 +372,16 @@ class Steganographer:
         # TODO: Implement
         return None
 
+    def format_image(self):
+        file_split = self.image_file.split('.')
+        file_ending = file_split[1]
+        if file_ending == 'jpg':
+            self.image = self.image[:,:,0]
+        self.embedded_image = self.image
+
     def run(self):
         """Run Steganography class."""
+        self.format_image()
         if self.method == "embed":
             print("RUNNING steganographer with METHOD embed")
             print()
