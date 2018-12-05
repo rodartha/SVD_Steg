@@ -71,14 +71,6 @@ for i in range(cols_protected, block_size-1):
         coeff = numpy.zeros((orthog_bits, orthog_bits))
         sol = numpy.zeros((orthog_bits, 1))
 
-
-        #print("orthog bits:")
-        #print()
-        #print(orthog_bits)
-        #print(testMatrix[3][2])
-
-
-
         for j in range(0, i):
             #print("j: " + str(j))
 

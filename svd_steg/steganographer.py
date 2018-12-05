@@ -26,6 +26,8 @@ class Steganographer:
         self.image_file = image_file
         self.method = method
         self.embedded_image = self.image
+        self.error_count = 0
+        self.error_flag = 0
 
     def output_embedded_image(self):
         """Ouput an embedded image as IMAGENAME_steg."""
@@ -33,7 +35,7 @@ class Steganographer:
         output_filename = file_split[0] + '_steg.' + file_split[1]
 
         file_ending = file_split[1]
-        embedded_image = self.embedded_image
+        embedded_image = (self.embedded_image).astype(numpy.uint8)
         if file_ending == 'jpg':
             embedded_image = numpy.zeros([self.embedded_image.shape[0], self.embedded_image.shape[1], 3])
             for i in range(0, 3):
@@ -79,23 +81,37 @@ class Steganographer:
         """compute the SVD of a single image block (will add input later)"""
 
         #print(image_block)
-        U, s, VT = numpy.linalg.svd(image_block)
+        U, S, VT = numpy.linalg.svd(image_block)
 
         # create blank m x n matrix
         Sigma = numpy.zeros((U.shape[1], VT.shape[0]))
 
         # populates Sigma by transplating s matrix into main diaganol
-        Sigma[:VT.shape[0], :VT.shape[0]] = numpy.diag(numpy.diag(s))
+        #Sigma[:VT.shape[0], :VT.shape[0]] = numpy.diag(numpy.diag(s))
+
+        for i in range(0, S.shape[0]):
+            for j in range(0, S.shape[0]):
+                if i == j:
+                    Sigma[i,j] = S[i]
 
         '''
         print("SIGMA")
         print(Sigma)
         '''
-
+        block = U.dot(Sigma.dot(VT))
+        '''
+        print("reconstructed block")
+        print(block)
+        print()
+        '''
         return [U, Sigma, VT]
 
 
-    def make_orthogonal(self, U_matrix, cols_protected):
+    def make_column_orthogonal(self, U_matrix, cols_protected, col, orthog_bits):
+
+        # if the col is protected it is already orthogonal
+        if col < cols_protected:
+            return
 
         # get block size
         block_size = U_matrix.shape[0]
@@ -103,51 +119,55 @@ class Steganographer:
         # set this matrix = block with embedded bits
         testMatrix = U_matrix
 
+        # empty for the results
         coeff = [[]]
         sol = [[]]
 
-        orthog_bits = 1
+        # handle case that we are on the first column, we simply let coeff the last element
+        # in col0, and sol = the negative dot product of the entries in col0 and col1 up until
+        # the last entry
+        if orthog_bits == 1:
+            coeff = testMatrix[block_size-1, col-1]
+            sol = -dot(testMatrix[0:block_size-1, col-1], testMatrix[0:block_size - 1, col])
+        else:
 
-        # loop through the cols 1...block_size for now
-        for i in range(cols_protected, block_size):
+            # else coeff = the [orthog_bits*orthog_bits] matrix consisting of
+            # the bottom orthog_bits elements from each column 0...i (non inclusive)
+            # essentially taking all columns previous to its [unkown*unkown] bottom values
+            coeff = numpy.zeros((orthog_bits, orthog_bits))
+            sol = numpy.zeros((orthog_bits, 1))
 
-            # handle case that we are on the first column, we simply let coeff the last element
-            # in col0, and sol = the negative dot product of the entries in col0 and col1 up until
-            # the last entry
-            if orthog_bits == 1:
-                coeff = testMatrix[block_size-1, i-1]
-                sol = -dot(testMatrix[0:block_size-1, i-1], testMatrix[0:block_size - 1, i])
-            else:
+            print("num orthog bits: " + str(orthog_bits))
 
-                # else coeff = the orthog_bits*orthog_bits matrix consisting of
-                # the bottom orthog_bits elements from each column 0...i (non inclusive)
-                coeff = numpy.zeros((orthog_bits, orthog_bits))
-                sol = numpy.zeros((orthog_bits, 1))
+            # actually transplant the values into our coeff and sol matrices
+            # this is just actually taking hte values from testMatrix and placing
+            # them in our matrices as described above
 
-                # actually transplant the values into our coeff and sol matrices
-                for j in range(0, i):
-                    #print("j: " + str(j))
+            # the rationale is that if our unkowns * the knowns in the left vectors = the -dot product of the knowns,
+            # then their total result will be 0, this is what we are solving to accomplish
+            for j in range(0, col):
 
-                    for k in range(block_size-orthog_bits, block_size):
-                        #print("k: " + str(k))
-                        coeff[j, k-block_size+orthog_bits] = testMatrix[k, j]
-                        #print(coeff)
+                for k in range(block_size-orthog_bits, block_size):
+                    coeff[j, k-block_size+orthog_bits] = testMatrix[k, j]
 
-                    sol[j][0] = -dot(testMatrix[0:block_size-orthog_bits, j], testMatrix[0:block_size - orthog_bits, i])
+                sol[j][0] = -dot(testMatrix[0:block_size-orthog_bits, j], testMatrix[0:block_size - orthog_bits, col])
 
-                    '''
-            print("coefficient matrix")
-            print()
-            print(coeff)
-            print()
-            print("solution matirx:")
-            print()
-            print(sol)
-            print()
-            #print(sol)'''
+        '''
+        print("coefficient matrix")
+        print()
+        print(coeff)
+        print()
+        print("solution matrix:")
+        print()
+        print(sol)
+        print()
+        '''
 
-            # handle the case that that we are not on orth_bits == 1
-            if orthog_bits > 1:
+        # handle the case that that we are not on orth_bits == 1
+        if orthog_bits > 1:
+            try:
+
+                # simply solve the equation
                 res = solve(coeff, sol)
                 #print("res: ")
                 #print(res)
@@ -156,46 +176,70 @@ class Steganographer:
                 res = res.ravel()
 
                 # replace the unkown values in the matrix
-                testMatrix[block_size-orthog_bits:block_size, i] = res
+                testMatrix[block_size-orthog_bits:block_size, col] = res
 
                 #print("after embedding cycle: " + str(i))
                 #print(testMatrix)
-                #print("testing dot products")
 
                 # test that all dot product are 0 and it is in fact orthogonal
-                for g in range(0, i):
-                    dotprod = -dot(testMatrix[0:block_size, g], testMatrix[0:block_size, i])
+                for g in range(0, col):
+                    '''
+                    print("testing:")
+                    print(testMatrix[0:block_size, g])
+                    print()
+                    print("and")
+                    print()
+                    print(testMatrix[0:block_size, i])
+                    '''
+
+                    dotprod = -dot(testMatrix[0:block_size, g], testMatrix[0:block_size, col])
                     #print(dotprod)
-                    assert(math.fabs(dotprod) < .000001)
-
-            # handle case that we have just 1 orthogonal bit
-            else:
-                res = sol/coeff
-                testMatrix[block_size-1, i] = res
-
-                #print("res: ")
-                #print(res)
-                #print()
-
-                #print("after embedding cycle: " + str(i))
-                #print(testMatrix)
-
-                #print("testing dot products")
-
-                # again test dot products
-                for g in range(0, i):
-                    dotprod = -dot(testMatrix[0:block_size, g], testMatrix[0:block_size, i])
-                    #print(dotprod)
-                    assert(math.fabs(dotprod) < .000001)
-
-            print()
-
-            # increment orth bits for every column we handle
-            orthog_bits += 1
+                    if numpy.linalg.matrix_rank(coeff) == orthog_bits:
+                        assert(math.fabs(dotprod) < .000001)
+            except:
+                print("could not make orthogonal 2")
+                self.error_count += 1
 
 
-        #print("final:")
-        #print(testMatrix)
+        # handle case that we have just 1 orthogonal bit
+        else:
+
+            try:
+
+                # as long as coeff != 0 we can easily find the single missing value given 2 columns
+                if coeff != 0:
+
+                    res = sol/coeff
+                    '''
+                    print("res:")
+                    print(res)
+                    print()
+                    '''
+                    testMatrix[block_size-1, col] = res
+                    '''
+                    print("after embedding cycle: " + str(col))
+                    print(testMatrix)
+                    '''
+                    # again test dot products
+                    for g in range(0, col):
+                        '''
+                        print("testing:")
+                        print(testMatrix[0:block_size, g])
+                        print()
+                        print("and")
+                        print()
+                        print(testMatrix[0:block_size, i])
+                        '''
+                        dotprod = -dot(testMatrix[0:block_size, g], testMatrix[0:block_size, col])
+                        #print(dotprod)
+                        assert(math.fabs(dotprod) < .000001)
+            except:
+
+                # occasionally we get an error when the rank of our matrix_rank
+                # is less than the size of it, or if we have a bunch of zeroes
+                print("could not make orthogonal 1")
+                self.error_count += 1
+
         return testMatrix
 
 
@@ -205,16 +249,15 @@ class Steganographer:
         #A = []
 
         # Set block size
-        block_size = 8
-        cols_protected = 1
+        block_size = 4
+        cols_protected = 1 # currently only works with 1, would be great to get 2 working
 
         num_rows = ((self.embedded_image).shape)[0]
         num_cols = ((self.embedded_image).shape)[1]
 
         # bits per block
-        #bpb = math.floor(((block_size - cols_protected-1)*(block_size - cols_protected))/2)
-        # hardcoded for now for an 8x8 matrix, math wasnt working quite right
-        bpb = 27
+        # hardcoded for now for an 4x4 with 1 column protected matrix, math wasnt working quite right
+        bpb = 5
 
         # num blocks possible
         num_blocks = (num_rows * num_cols)/(block_size * block_size)
@@ -233,8 +276,6 @@ class Steganographer:
 
         # convert message to bits to be embeded (currenty only supports block size 8)
         binary_message = self.binarize_message()
-        # print(binary_message)
-        # print()
 
         # looping through each block
         for j in range(col_lim):
@@ -243,24 +284,36 @@ class Steganographer:
                 # isolate the block
                 block = self.embedded_image[block_size*i:block_size*(i+1), j*block_size:block_size*(j+1)]
 
+                print("original block: ")
+                print(block)
+                print()
+
                 # compute the SVD
                 U, S, VT = self.computeSVD(block)
 
-                U_std = U
-                VT_prime = VT
+
 
                 # rememeber that A = U*Sigma*VT can be made standard using
                 # a matrix that is the identity martix with +-1 as the diaganol values
                 # giving use A = U*Sigma*V^T = (U*D)*Sigma*(D*VT) because D is its own inverse
-                # and by associativity thus
+                # and by associativity, the problem is that this messes with the orthogonality
 
-                # should test that this is working properly
+                print("original U:")
+                print()
+                print(U)
+                print()
+
                 for k in range(0, block_size):
                     if U[0,k] < 0:
 
                         # multiply entire columns by -1
-                        U_std[0:block_size,k] *= -1
-                        VT_prime[0:block_size,k] *= -1
+                        U[0:block_size, k] *= -1
+                        VT[0:block_size, k] *= -1
+
+                print("modified U:")
+                print()
+                print(U)
+                print()
 
                 # prepare string for embedding (chop up binary)
                 to_embed = ""
@@ -275,23 +328,24 @@ class Steganographer:
                 if to_embed == "":
                     break
 
-                print("original block")
-                print()
-                print(block)
-
                 print("EMBEDDING: ")
                 print(to_embed)
                 print()
-                print(block)
-                print()
 
-                U_mk = U_std
+                # for the embedding
+                U_mk = U
 
-                '''
+                # not sure why they do this, but its in the psuedocode (not sure if it is working)
+                S_Prime = S
+
+                avg_dist = (S[1,1] + S[block_size-1,block_size-1])/(block_size-2);
+                for k in range (2, block_size):
+                    S_Prime[k,k]= S[1,1] - (k-2)*avg_dist
+
+
                 print("U-Matrix before embedding: ")
                 print(U_mk)
                 print()
-                '''
 
                  # m is columns, n is rows:
                 num_orthog_bits = 1
@@ -306,62 +360,53 @@ class Steganographer:
                             if (m == block_size-1):
                                 pass
 
-                                # protect column
+                            # protect column
                             elif m < cols_protected:
-                                    U_mk[n, m] = U_std[n, m]
+                                    U_mk[n, m] = U[n, m]
 
                             # embed bits
                             elif n < (block_size - num_orthog_bits):
-                                U_mk[n,m] = to_embed[message_index] * math.fabs(U_std[n,m])
+                                U_mk[n,m] = to_embed[message_index] * math.fabs(U[n,m])
                                 message_index += 1
 
-                            '''
-                            # make orthogonal
-                            else:
-                                coefficients = numpy.zeros((num_orthog_bits - 1, num_orthog_bits - 1))
-                                solutions = numpy.zeros(((num_orthog_bits - 1), 1))
-                                for x in range(0,num_orthog_bits):
-                                    for y in range(0, num_orthog_bits):
-                                        coefficients[x,y] = U_mk[y+block_size+1-num_orthog_bits,x]
-                                    solutions[x:1] = -dot(U_mk[1:block_size + 1 - num_orthog_bits,num_orthog_bits],U_mk[1:block_size + 1 - num_orthog_bits,x])
-                            '''
+                    # if we are past protected cols then make the current column orthogonal to the previos ones
+                    if m >= cols_protected:
+                        U_mk = self.make_column_orthogonal(U_mk, cols_protected, m, num_orthog_bits)
+                        num_orthog_bits += 1
 
-                    num_orthog_bits += 1
 
                 print("U-Matrix after embedding: ")
                 print(U_mk)
                 print()
 
-                res = self.make_orthogonal(U_mk, cols_protected)
 
-                print("U-Matrix after making orthogonal: ")
-                print(res)
+                # normalize the new U matrix by dividng by the magnitude of each column (not sure why)
+                for x in range(0, block_size):
+                    norm_factor = math.sqrt(dot(U_mk[0:block_size, x],U_mk[0:block_size, x]))
+                    for y in range(0, block_size):
+                        U_mk[y,x] /= norm_factor
+
+
+                # round result to be whole numbers
+                block = numpy.round(U_mk.dot(S_Prime.dot(VT)))
+
+
+                # wasn't quite working, its to make sure all pixels within 0-255
+                # but they are using a tiff which might have different properties?
+                '''
+                for x in range(0, block_size):
+                    for y in range(0, block_size):
+                        if block[x, y] > 255:
+                            block[x, y] = 255
+                        if block[x, y] < 0:
+                            block[x, y] = 0
+                '''
+
+                block = block.astype(numpy.uint8)
+                print("reconstructed block")
+                print(block)
                 print()
 
-
-                # this is where i imagine something is going wrong!!
-
-                for x in range(0, block_size):
-                    norm_factor = math.sqrt(dot(res[0:block_size, x],res[0:block_size, x]))
-                    for y in range(0, block_size):
-                        res[y,x] /= norm_factor
-
-                block = res.dot(S.dot(VT_prime))
-                block = numpy.round(block)
-                #block = block.astype(numpy.uint8)
-
-                for x in range(0, block_size):
-                    for y in range(0, block_size):
-                        if block[x, y] > 128:
-                            block[x, y] = 128
-                        if block[x, y] < -127:
-                            block[x, y] = -127
-
-
-                block = block + 127
-                #block = block.astype(numpy.uint8)
-                print("U matrix after normalizing and rounding")
-                print(block)
                 # reassign the block after modification
                 self.embedded_image[block_size*i:block_size*(i+1), j*block_size:block_size*(j+1)] = block
 
@@ -390,6 +435,7 @@ class Steganographer:
             #print(self.image)
             #print()
             self.embed()
+            print("number of errors: " + str(self.error_count))
         else:
             print("RUNNING steganographer with METHOD decode")
             print()
