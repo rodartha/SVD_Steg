@@ -303,7 +303,13 @@ class Steganographer:
 
                         # multiply entire columns by -1
                         U[0:block_size, k] *= -1
-                        VT[0:block_size, k] *= -1
+                        VT[k, 0:block_size] *= -1
+
+
+                test_block = U.dot(S.dot(VT))
+
+                numpy.testing.assert_almost_equal(test_block, block)
+
                 """
                 print("modified U:")
                 print()
@@ -384,6 +390,7 @@ class Steganographer:
                 print()
                 """
 
+                '''
                 # normalize the new U matrix by dividing by the magnitude of each column (not sure why)
                 for x in range(0, block_size):
                     norm_factor = math.sqrt(dot(U_mk[0:block_size, x],U_mk[0:block_size, x]))
@@ -411,7 +418,14 @@ class Steganographer:
                         if block[x, y] < 0:
                             block[x, y] = 0
 
+                '''
 
+                print()
+                print("U_mk before reconstruction")
+                print(U_mk)
+                print()
+
+                block = numpy.round(U_mk.dot(S.dot(VT)))
                 block = block.astype(numpy.uint8)
                 print("reconstructed block")
                 print(block)
