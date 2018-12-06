@@ -548,7 +548,10 @@ class Steganographer:
             if finalMessage[x] == -1:
                 finalMessage[x] = 0
 
-        # FIXME:
+        chars = []
+        for b in range(int(math.floor(len(finalMessage) / 8))):
+            byte = finalMessage[b*8:(b+1)*8]
+            chars.append(chr(int(''.join([str(bit) for bit in byte]), 2)))
         self.message = ''.join(chars)
 
         print("testing done")
