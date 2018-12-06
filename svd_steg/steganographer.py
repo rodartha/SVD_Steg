@@ -31,6 +31,8 @@ class Steganographer:
         self.error_flag = 0
         self.recovered_total = 0
         self.recovered_correct = 0
+        self.recovered_close = 0
+        self.recovered_close_kinda = 0
 
     def output_embedded_image(self):
         """Ouput an embedded image as IMAGENAME_steg."""
@@ -259,7 +261,7 @@ class Steganographer:
 
         # bits per block
         # hardcoded for now for an 4x4 with 1 column protected matrix, math wasnt working quite right
-        bpb = 5
+        bpb = 3
 
         # num blocks possible
         num_blocks = (num_rows * num_cols)/(block_size * block_size)
@@ -284,7 +286,7 @@ class Steganographer:
             for i in range(row_lim):
 
                 # isolate the block
-                block = self.embedded_image[block_size*i:block_size*(i+1), j*block_size:block_size*(j+1)]
+                block = self.embedded_image[block_size*i:block_size*(i+1), j*block_size:block_size*(j+1)] - 127
 
 
                 # compute the SVD
@@ -336,7 +338,7 @@ class Steganographer:
 
 
                 print("original block: ")
-                print(block)
+                print(block + 127)
                 print()
 
 
@@ -364,8 +366,9 @@ class Steganographer:
                  # m is columns, n is rows:
                 num_orthog_bits = 1
                 message_index = 0
-                for m in range(0, block_size):
-                    for n in range(0, block_size):
+                for m in range(cols_protected, block_size):
+                    # Always protect the first:
+                    for n in range(1, block_size):
 
                         # only embed as long as the message still has bits to embed
                         if message_index < len(to_embed):
@@ -374,33 +377,49 @@ class Steganographer:
                             if (m == block_size-1):
                                 pass
 
-                            # protect column
-                            elif m < cols_protected:
-                                    U_mk[n, m] = U[n, m]
-
                             # embed bits
                             elif n < (block_size - num_orthog_bits):
                                 U_mk[n,m] = to_embed[message_index] * math.fabs(U[n,m])
                                 message_index += 1
 
                     # if we are past protected cols then make the current column orthogonal to the previos ones
-                    if m >= cols_protected:
-                        U_mk = self.make_column_orthogonal(U_mk, cols_protected, m, num_orthog_bits)
-                        num_orthog_bits += 1
+                    U_mk = self.make_column_orthogonal(U_mk, cols_protected, m, num_orthog_bits)
+                    num_orthog_bits += 1
+
+
+                    norm_factor = math.sqrt(dot(U_mk[0:block_size, m],U_mk[0:block_size, m]))
+                    for x in range(0, block_size):
+                        U_mk[x,m] /= norm_factor
+
+                try:
+                    for x in range(0, block_size):
+                        #print(math.sqrt(dot(U_mk[0:block_size, x],U_mk[0:block_size, x])))
+
+                        for y in range(0, block_size):
+                            if x != y:
+                                '''
+                                print("x: " + str(x))
+                                print("y: " + str(y))
+                                print()
+                                '''
+                                dotprod = dot(U_mk[0:block_size, x], U_mk[0:block_size, y])
+                                '''
+                                print("dotprod = " + str(dotprod))
+                                print()
+                                '''
+
+                                assert(math.fabs(dotprod) < .000001)
+
+                except:
+                    print("FAILED TO MAKE ORTHOGONAL")
+                    print()
+                    self.error_count += 1
 
                 """
                 print("U-Matrix after embedding: ")
                 print(U_mk)
                 print()
                 """
-
-                '''
-                # normalize the new U matrix by dividing by the magnitude of each column (not sure why)
-                for x in range(0, block_size):
-                    norm_factor = math.sqrt(dot(U_mk[0:block_size, x],U_mk[0:block_size, x]))
-                    for y in range(0, block_size):
-                        U_mk[y,x] /= norm_factor
-
 
                 # round result to be whole numbers
                 print()
@@ -415,27 +434,28 @@ class Steganographer:
 
                 for x in range(0, block_size):
                     for y in range(0, block_size):
+                        """
                         # FIXME: temp fix, obviously some form of negative error
                         block[x, y] = math.fabs(block[x, y])
-                        if block[x, y] > 255:
-                            block[x, y] = 255
-                        if block[x, y] < 0:
-                            block[x, y] = 0
-
-                '''
+                        """
+                        if block[x, y] > 128:
+                            block[x, y] = 128
+                        if block[x, y] < -127:
+                            block[x, y] = -127
 
                 print()
                 print("U_mk before reconstruction")
                 print(U_mk)
                 print()
 
-                block = numpy.round(U_mk.dot(S.dot(VT)))
+                #block = numpy.round(U_mk.dot(S.dot(VT)))
                 block = block.astype(numpy.uint8)
+                block += 127
                 print("reconstructed block")
                 print(block)
                 print()
 
-
+                """
                 print("ATTEMPING RECOVERY")
                 recovered = block
                 temp_rcvd_msg = []
@@ -448,7 +468,7 @@ class Steganographer:
 
                 U_std = U
 
-                for k in range (0, block_size):
+                for k in range (1, block_size):
                     if U[0,k] < 0:
                         U_std[0:block_size, k] = -1*U[0:block_size,k];
 
@@ -477,7 +497,17 @@ class Steganographer:
 
                 if list(to_embed) == temp_rcvd_msg:
                     self.recovered_correct += 1
+                else:
+                    correct_count = 0
+                    for i in range(0, len(to_embed)):
+                        if to_embed[i] == temp_rcvd_msg[i]:
+                            correct_count += 1
+                    if math.fabs(correct_count - len(to_embed)) == 1:
+                        self.recovered_close += 1
+                    if math.fabs(correct_count - len(to_embed)) == 2:
+                        self.recovered_close_kinda += 1
                 self.recovered_total += 1
+                """
 
                 # reassign the block after modification
                 self.embedded_image[block_size*i:block_size*(i+1), j*block_size:block_size*(j+1)] = block
