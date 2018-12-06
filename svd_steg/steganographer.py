@@ -549,8 +549,8 @@ class Steganographer:
                 finalMessage[x] = 0
 
         chars = []
-        for b in range(int(math.floor(len(finalMessage) / 8))):
-            byte = finalMessage[b*8:(b+1)*8]
+        for b in range(int(math.floor(len(finalMessage) / 7))):
+            byte = finalMessage[b*7:(b+1)*7]
             chars.append(chr(int(''.join([str(bit) for bit in byte]), 2)))
         self.message = ''.join(chars)
 
