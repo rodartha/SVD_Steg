@@ -522,6 +522,8 @@ class Steganographer:
 
     def decode(self):
         """Decode message from image."""
+        print("DECODING")
+
         finalMessage = []
         num_rows = ((self.embedded_image).shape)[0]
         num_cols = ((self.embedded_image).shape)[1]
@@ -538,9 +540,7 @@ class Steganographer:
                 block = self.embedded_image[block_size*i:block_size*(i+1), j*block_size:block_size*(j+1)]
                 finalMessage += self.decodeBlock(block)
 
-
-
-
+        self.message = ''.join(finalMessage)
         print("testing done")
 
 

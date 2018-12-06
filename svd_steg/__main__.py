@@ -35,12 +35,14 @@ def main(embed, decode, image_file, message_file):
     image_in = imageio.imread(input_dir + '/' + image_file)
 
     # Load Message
-    if not os.path.isfile(input_dir + '/' + message_file):
-        print("Error: Message file "
-              + message_file + " does not exit in input folder.")
+    message_in = ""
+    if (method = "embed"):
+        if not os.path.isfile(input_dir + '/' + message_file):
+            print("Error: Message file "
+                  + message_file + " does not exit in input folder.")
 
-    file = open(input_dir + '/' + message_file, 'r')
-    message_in = file.read()
+        file = open(input_dir + '/' + message_file, 'r')
+        message_in = file.read()
 
     # Run Steganography Tool
     print(method)

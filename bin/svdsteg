@@ -6,7 +6,7 @@ set -e
 usage() {
   echo "Usage: $0 (embed|decrypt|style)"
   echo "If embed $1 (message-file.txt) $2 (your-image.png)"
-  echo "If decrypt $1 (your-image.png)"
+  echo "If decode $1 (your-image.png)"
 }
 
 stylecheck() {
@@ -25,13 +25,13 @@ case $1 in
 		echo "Embedding Message"
 		svd_steg -e $2 $3
 		;;
-	"decrypt")
+	"decode")
 		if [ $# -ne 2 ]; then
 			usage
 			exit 1
 		fi
-		echo "Decrypting Message"
-		svd_steg -d $2
+		echo "Decoding Message"
+		svd_steg -d "" $2
 		;;
 	"style")
 		stylecheck
