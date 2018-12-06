@@ -61,10 +61,6 @@ class Steganographer:
         else:
             self.output_decoded_text()
 
-    def create_block_image(self, block_size):
-        """ Create blocks """
-        return None
-
     def binarize_message(self):
         """ Turn string into binary """
         binary_message = ''.join(format(ord(x), 'b') for x in self.message)
@@ -283,10 +279,11 @@ class Steganographer:
 
                 # isolate the block
                 block = self.embedded_image[block_size*i:block_size*(i+1), j*block_size:block_size*(j+1)]
-
+                """
                 print("original block: ")
                 print(block)
                 print()
+                """
 
                 # compute the SVD
                 U, S, VT = self.computeSVD(block)
@@ -297,23 +294,24 @@ class Steganographer:
                 # a matrix that is the identity martix with +-1 as the diaganol values
                 # giving use A = U*Sigma*V^T = (U*D)*Sigma*(D*VT) because D is its own inverse
                 # and by associativity, the problem is that this messes with the orthogonality
-
+                """
                 print("original U:")
                 print()
                 print(U)
                 print()
-
+                """
                 for k in range(0, block_size):
                     if U[0,k] < 0:
 
                         # multiply entire columns by -1
                         U[0:block_size, k] *= -1
                         VT[0:block_size, k] *= -1
-
+                """
                 print("modified U:")
                 print()
                 print(U)
                 print()
+                """
 
                 # prepare string for embedding (chop up binary)
                 to_embed = ""
@@ -338,14 +336,16 @@ class Steganographer:
                 # not sure why they do this, but its in the psuedocode (not sure if it is working)
                 S_Prime = S
 
+                # Might be blocksize - 3 not 2
                 avg_dist = (S[1,1] + S[block_size-1,block_size-1])/(block_size-2);
                 for k in range (2, block_size):
                     S_Prime[k,k]= S[1,1] - (k-2)*avg_dist
 
-
+                """
                 print("U-Matrix before embedding: ")
                 print(U_mk)
                 print()
+                """
 
                  # m is columns, n is rows:
                 num_orthog_bits = 1
@@ -374,13 +374,13 @@ class Steganographer:
                         U_mk = self.make_column_orthogonal(U_mk, cols_protected, m, num_orthog_bits)
                         num_orthog_bits += 1
 
-
+                """
                 print("U-Matrix after embedding: ")
                 print(U_mk)
                 print()
+                """
 
-
-                # normalize the new U matrix by dividng by the magnitude of each column (not sure why)
+                # normalize the new U matrix by dividing by the magnitude of each column (not sure why)
                 for x in range(0, block_size):
                     norm_factor = math.sqrt(dot(U_mk[0:block_size, x],U_mk[0:block_size, x]))
                     for y in range(0, block_size):
@@ -393,15 +393,17 @@ class Steganographer:
 
                 # wasn't quite working, its to make sure all pixels within 0-255
                 # but they are using a tiff which might have different properties?
-                '''
+
                 for x in range(0, block_size):
                     for y in range(0, block_size):
+                        # FIXME: temp fix, obviously some form of negative error
+                        block[x, y] = math.fabs(block[x, y])
                         if block[x, y] > 255:
                             block[x, y] = 255
                         if block[x, y] < 0:
                             block[x, y] = 0
-                '''
 
+                
                 block = block.astype(numpy.uint8)
                 print("reconstructed block")
                 print(block)
@@ -409,8 +411,7 @@ class Steganographer:
 
                 # reassign the block after modification
                 self.embedded_image[block_size*i:block_size*(i+1), j*block_size:block_size*(j+1)] = block
-
-        return None
+        print("DONE")
 
     def decode(self):
         """Decode message from image."""
