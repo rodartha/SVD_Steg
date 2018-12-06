@@ -553,10 +553,10 @@ class Steganographer:
         print(temp_rec)
         return temp_rec
 
-    def convert_message_to_string(bit_message):
-        for x in range(0, len(finalMessage)):
-            if finalMessage[x] == -1:
-                finalMessage[x] = 0
+    def convert_message_to_string(self, bit_message):
+        for x in range(0, len(bit_message)):
+            if bit_message[x] == -1:
+                bit_message[x] = 0
 
         chars = []
         for b in range(int(math.floor(len(bit_message) / 7))):
