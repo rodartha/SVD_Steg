@@ -523,6 +523,16 @@ class Steganographer:
         print(temp_rec)
         return temp_rec
 
+    def convert_message_to_string(bit_message):
+        for x in range(0, len(finalMessage)):
+            if finalMessage[x] == -1:
+                finalMessage[x] = 0
+
+        chars = []
+        for b in range(int(math.floor(len(bit_message) / 7))):
+            byte = bit_message[b*7:(b+1)*7]
+            chars.append(chr(int(''.join([str(bit) for bit in byte]), 2)))
+        return ''.join(chars)        
 
     def decode(self):
         """Decode message from image."""
@@ -544,15 +554,7 @@ class Steganographer:
                 block = self.embedded_image[block_size*i:block_size*(i+1), j*block_size:block_size*(j+1)]
                 finalMessage += self.decodeBlock(block)
 
-        for x in range(0, len(finalMessage)):
-            if finalMessage[x] == -1:
-                finalMessage[x] = 0
-
-        chars = []
-        for b in range(int(math.floor(len(finalMessage) / 7))):
-            byte = finalMessage[b*7:(b+1)*7]
-            chars.append(chr(int(''.join([str(bit) for bit in byte]), 2)))
-        self.message = ''.join(chars)
+        self.message = self.convert_message_to_string(finalMessage)
 
         print("testing done")
 
