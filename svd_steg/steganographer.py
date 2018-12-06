@@ -28,6 +28,8 @@ class Steganographer:
         self.embedded_image = self.image
         self.error_count = 0
         self.error_flag = 0
+        self.recovered_total = 0
+        self.recovered_correct = 0
 
     def output_embedded_image(self):
         """Ouput an embedded image as IMAGENAME_steg."""
@@ -279,11 +281,7 @@ class Steganographer:
 
                 # isolate the block
                 block = self.embedded_image[block_size*i:block_size*(i+1), j*block_size:block_size*(j+1)]
-                """
-                print("original block: ")
-                print(block)
-                print()
-                """
+
 
                 # compute the SVD
                 U, S, VT = self.computeSVD(block)
@@ -325,6 +323,12 @@ class Steganographer:
                 # for testing
                 if to_embed == "":
                     break
+
+
+                print("original block: ")
+                print(block)
+                print()
+
 
                 print("EMBEDDING: ")
                 print(to_embed)
@@ -388,6 +392,10 @@ class Steganographer:
 
 
                 # round result to be whole numbers
+                print()
+                print("U_mk before reconstruction")
+                print(U_mk)
+                print()
                 block = numpy.round(U_mk.dot(S_Prime.dot(VT)))
 
 
@@ -403,11 +411,55 @@ class Steganographer:
                         if block[x, y] < 0:
                             block[x, y] = 0
 
-                
+
                 block = block.astype(numpy.uint8)
                 print("reconstructed block")
                 print(block)
                 print()
+
+
+                print("ATTEMPING RECOVERY")
+                recovered = block
+                temp_rcvd_msg = []
+
+                U, S, VT = numpy.linalg.svd(recovered)
+
+                print("U:")
+                print(U)
+                print()
+
+                U_std = U
+
+                for k in range (0, block_size):
+                    if U[0,k] < 0:
+                        U_std[0:block_size, k] = -1*U[0:block_size,k];
+
+
+                print("U_std:")
+                print(U_std)
+                print()
+
+                next_spot = 0;
+
+
+                for k in range(1, block_size-1):
+
+                    for p in range(0, block_size-k):
+                        if U_std[p, k] < 0:
+                            temp_rcvd_msg.append(-1);
+                        else:
+                            temp_rcvd_msg.append(1);
+
+                print("embedded:")
+                print(list(to_embed))
+                print()
+                print("recovered: ")
+                print(temp_rcvd_msg)
+                print()
+
+                if list(to_embed) == temp_rcvd_msg:
+                    self.recovered_correct += 1
+                self.recovered_total += 1
 
                 # reassign the block after modification
                 self.embedded_image[block_size*i:block_size*(i+1), j*block_size:block_size*(j+1)] = block
@@ -437,6 +489,12 @@ class Steganographer:
             #print()
             self.embed()
             print("number of errors: " + str(self.error_count))
+            print()
+            print("number of correctly recovered: " + str(self.recovered_correct))
+            print()
+            print("number of recovered: " + str(self.recovered_total))
+            print()
+
         else:
             print("RUNNING steganographer with METHOD decode")
             print()
