@@ -36,7 +36,7 @@ def main(embed, decode, image_file, message_file):
 
     # Load Message
     message_in = ""
-    if (method = "embed"):
+    if method == "embed":
         if not os.path.isfile(input_dir + '/' + message_file):
             print("Error: Message file "
                   + message_file + " does not exit in input folder.")

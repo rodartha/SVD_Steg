@@ -9,6 +9,7 @@ import pprint
 from numpy.linalg import solve
 from numpy import dot
 from svd_steg.helper import progress_bar
+from pathlib import Path
 
 
 class Steganographer:
@@ -50,7 +51,10 @@ class Steganographer:
         file_split = self.image_file.split('.')
         output_filename = file_split[0] + '_text.txt'
 
-        file = open("ouput/" + output_filename, 'w+')
+        curpath = os.path.abspath(os.curdir)
+        total_path = os.path.join(curpath, output_filename)
+
+        file = open(total_path, 'w+')
         file.write(self.message)
         file.close()
 
@@ -490,7 +494,7 @@ class Steganographer:
         #bpb = ((dim-cols_protected-1)*(dim-cols_protected))/2
 
         #compute SVD of block 
-        [U, Sigma, VT] = computeSVD(block);
+        [U, Sigma, VT] = self.computeSVD(block);
 
         #used to make standard 
         U_std = U
@@ -540,7 +544,13 @@ class Steganographer:
                 block = self.embedded_image[block_size*i:block_size*(i+1), j*block_size:block_size*(j+1)]
                 finalMessage += self.decodeBlock(block)
 
-        self.message = ''.join(finalMessage)
+        for x in range(0, len(finalMessage)):
+            if finalMessage[x] == -1:
+                finalMessage[x] = 0
+
+        # FIXME:
+        self.message = ''.join(chars)
+
         print("testing done")
 
 
