@@ -141,7 +141,7 @@ class Steganographer:
             coeff = numpy.zeros((orthog_bits, orthog_bits))
             sol = numpy.zeros((orthog_bits, 1))
 
-            print("num orthog bits: " + str(orthog_bits))
+            #print("num orthog bits: " + str(orthog_bits))
 
             # actually transplant the values into our coeff and sol matrices
             # this is just actually taking hte values from testMatrix and placing
@@ -253,7 +253,7 @@ class Steganographer:
         #A = []
 
         # Set block size
-        block_size = 4
+        block_size = 8
         cols_protected = 1 # currently only works with 1, would be great to get 2 working
 
         num_rows = ((self.embedded_image).shape)[0]
@@ -261,7 +261,7 @@ class Steganographer:
 
         # bits per block
         # hardcoded for now for an 4x4 with 1 column protected matrix, math wasnt working quite right
-        bpb = 3
+        bpb = 21
 
         # num blocks possible
         num_blocks = (num_rows * num_cols)/(block_size * block_size)
@@ -291,8 +291,6 @@ class Steganographer:
 
                 # compute the SVD
                 U, S, VT = self.computeSVD(block)
-
-
 
                 # rememeber that A = U*Sigma*VT can be made standard using
                 # a matrix that is the identity martix with +-1 as the diaganol values
@@ -455,8 +453,37 @@ class Steganographer:
                 print(block)
                 print()
 
-                """
+                self.embedded_image[block_size*i:block_size*(i+1), j*block_size:block_size*(j+1)] = block
+
                 print("ATTEMPING RECOVERY")
+
+                res = self.decodeBlock(block)
+
+                print("recovered:")
+                print()
+                print(res)
+                print()
+                print("len res: " + str(len(res)))
+                print()
+                print("len embedded: " + str(len(to_embed)))
+
+                if list(to_embed) == res:
+                    self.recovered_correct += 1
+                else:
+                    correct_count = 0
+                    for i in range(0, len(to_embed)):
+                        if to_embed[i] == res[i]:
+                            correct_count += 1
+                    if math.fabs(correct_count - len(to_embed)) == 1:
+                        self.recovered_close += 1
+                    if math.fabs(correct_count - len(to_embed)) == 2:
+                        self.recovered_close_kinda += 1
+                self.recovered_total += 1
+
+
+
+
+                """
                 recovered = block
                 temp_rcvd_msg = []
 
@@ -510,38 +537,38 @@ class Steganographer:
                 """
 
                 # reassign the block after modification
-                self.embedded_image[block_size*i:block_size*(i+1), j*block_size:block_size*(j+1)] = block
+
         print("DONE")
 
 
     def decodeBlock(self, block):
-        rows = 4
-        cols = 4
+        rows = block.shape[0]
+        cols = block.shape[0]
         cols_protected = 1
         temp_rec = []
-        #get dimensions of image 
-        #calculate bits per block 
+        #get dimensions of image
+        #calculate bits per block
         #bpb = ((dim-cols_protected-1)*(dim-cols_protected))/2
 
-        #compute SVD of block 
+        #compute SVD of block
         [U, Sigma, VT] = self.computeSVD(block);
 
-        #used to make standard 
+        #used to make standard
         U_std = U
-        
-        #if first entry of column in U is negative, multiply col by -1
-        for i in range(0, U.shape[1]):      #make U standard? 
-            if (U[0][i] < 0) :
-                for j in range(0, U.shape[0]):
-                    U_std[j][i] = -1 * U[j][i]
-            
 
-        #assumes 1st row is protected 
+        #if first entry of column in U is negative, multiply col by -1
+        for i in range(0, U.shape[1]):      #make U standard?
+            if (U[0,i] < 0) :
+                for j in range(0, U.shape[0]):
+                    U_std[j,i] = -1 * U[j,i]
+
+
+        #assumes 1st row is protected
         #block size is dim
         #loop from cols protected + 1 : (n/dim) - 1
         #read data from non protected cols
-        for i in range(0, cols -1):
-            #first row always protected? 
+        for i in range(cols_protected, cols -1):
+            #first row always protected?
             for j in range(1, rows - i):
                 if (U_std[j][i] < 0):
                     temp_rec.append(-1)
@@ -549,8 +576,8 @@ class Steganographer:
                     temp_rec.append(1)
 
 
-        print("recovered message: ")
-        print(temp_rec)
+        #print("recovered message: ")
+        #print(temp_rec)
         return temp_rec
 
     def convert_message_to_string(self, bit_message):
@@ -562,7 +589,7 @@ class Steganographer:
         for b in range(int(math.floor(len(bit_message) / 7))):
             byte = bit_message[b*7:(b+1)*7]
             chars.append(chr(int(''.join([str(bit) for bit in byte]), 2)))
-        return ''.join(chars)        
+        return ''.join(chars)
 
     def decode(self):
         """Decode message from image."""
@@ -611,7 +638,12 @@ class Steganographer:
             print()
             print("number of correctly recovered: " + str(self.recovered_correct))
             print()
+            print("number of near correctly recovered: " + str(self.recovered_close))
+            print()
             print("number of recovered: " + str(self.recovered_total))
+            print()
+
+            print("recovery rate: " + str(self.recovered_correct/self.recovered_total))
             print()
 
         else:
