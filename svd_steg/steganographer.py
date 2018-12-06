@@ -413,10 +413,70 @@ class Steganographer:
                 self.embedded_image[block_size*i:block_size*(i+1), j*block_size:block_size*(j+1)] = block
         print("DONE")
 
+
+    def decodeBlock(self, block):
+        rows = 4
+        cols = 4
+        cols_protected = 1
+        temp_rec = []
+        #get dimensions of image 
+        #calculate bits per block 
+        #bpb = ((dim-cols_protected-1)*(dim-cols_protected))/2
+
+        #compute SVD of block 
+        [U, Sigma, VT] = computeSVD(block);
+
+        #used to make standard 
+        U_std = U
+        
+        #if first entry of column in U is negative, multiply col by -1
+        for i in range(0, U.shape[1]):      #make U standard? 
+            if (U[0][i] < 0) :
+                for j in range(0, U.shape[0]):
+                    U_std[j][i] = -1 * U[j][i]
+            
+
+        #assumes 1st row is protected 
+        #block size is dim
+        #loop from cols protected + 1 : (n/dim) - 1
+        #read data from non protected cols
+        for i in range(0, cols -1):
+            #first row always protected? 
+            for j in range(1, rows - i):
+                if (U_std[j][i] < 0):
+                    temp_rec.append(-1)
+                else:
+                    temp_rec.append(1)
+
+
+        print("recovered message: ")
+        print(temp_rec)
+        return temp_rec
+
+
     def decode(self):
         """Decode message from image."""
-        # TODO: Implement
-        return None
+        finalMessage = []
+        num_rows = ((self.embedded_image).shape)[0]
+        num_cols = ((self.embedded_image).shape)[1]
+        block_size = 4
+
+        row_lim = math.floor(num_rows/block_size)
+        col_lim = math.floor(num_cols/block_size)
+
+         # looping through each block
+        for j in range(col_lim):
+            for i in range(row_lim):
+
+                # run decodeBlock on each block
+                block = self.embedded_image[block_size*i:block_size*(i+1), j*block_size:block_size*(j+1)]
+                finalMessage += self.decodeBlock(block)
+
+
+
+
+        print("testing done")
+
 
     def format_image(self):
         file_split = self.image_file.split('.')
