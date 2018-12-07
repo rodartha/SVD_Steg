@@ -293,6 +293,8 @@ class Steganographer:
                 # compute the SVD
                 U, S, VT = self.computeSVD(block)
 
+                V = numpy.matrix.transpose(VT)
+
                 # rememeber that A = U*Sigma*VT can be made standard using
                 # a matrix that is the identity martix with +-1 as the diaganol values
                 # giving use A = U*Sigma*V^T = (U*D)*Sigma*(D*VT) because D is its own inverse
@@ -308,10 +310,10 @@ class Steganographer:
 
                         # multiply entire columns by -1
                         U[0:block_size, k] *= -1
-                        VT[k, 0:block_size] *= -1
+                        V[0:block_size,k] *= -1
 
 
-                test_block = U.dot(S.dot(VT))
+                test_block = U.dot(S.dot(numpy.matrix.transpose(V)))
 
                 numpy.testing.assert_almost_equal(test_block, block)
 
@@ -345,6 +347,9 @@ class Steganographer:
                 print(to_embed)
                 print()
 
+                while len(to_embed) < bpb:
+                    to_embed.append(1)
+
                 # for the embedding
                 U_mk = U
 
@@ -365,24 +370,20 @@ class Steganographer:
                 print()
                 """
 
-                 # m is columns, n is rows:
+                # m is columns, n is rows:
                 num_orthog_bits = 1
                 message_index = 0
                 for m in range(cols_protected, block_size):
                     # Always protect the first:
-                    for n in range(1, block_size):
+                    for n in range(1, block_size - num_orthog_bits):
 
-                        # only embed as long as the message still has bits to embed
-                        if message_index < len(to_embed):
+                        if m < block_size-1:
+                            # only embed as long as the message still has bits to embed
+                            #if message_index < len(to_embed):
 
-                            # if last column, dont embed but make orthogonal
-                            if (m == block_size-1):
-                                pass
-
-                            # embed bits
-                            elif n < (block_size - num_orthog_bits):
-                                U_mk[n,m] = to_embed[message_index] * math.fabs(U[n,m])
-                                message_index += 1
+                                # embed bits
+                            U_mk[n,m] = to_embed[message_index] * math.fabs(U[n,m])
+                            message_index += 1
 
                     # if we are past protected cols then make the current column orthogonal to the previos ones
                     U_mk = self.make_column_orthogonal(U_mk, cols_protected, m, num_orthog_bits)
@@ -416,6 +417,17 @@ class Steganographer:
                     print("FAILED TO MAKE ORTHOGONAL")
                     print()
                     self.error_count += 1
+                    continue
+
+                try:
+                    for x in range(0, block_size):
+                        vector_length = dot(U_mk[0:block_size, x], U_mk[0:block_size, x])
+                        assert(math.fabs(vector_length - 1) < .00001)
+                except:
+                    print("FAILED TO MAKE ORTHOGONAL")
+                    print()
+                    self.error_count_lengths += 1
+                    continue
 
                 """
                 print("U-Matrix after embedding: ")
@@ -423,13 +435,13 @@ class Steganographer:
                 print()
                 """
 
+                VT = numpy.matrix.transpose(V)
                 # round result to be whole numbers
                 print()
                 print("U_mk before reconstruction")
                 print(U_mk)
                 print()
                 block = numpy.round(U_mk.dot(S_Prime.dot(VT)))
-
 
                 # wasn't quite working, its to make sure all pixels within 0-255
                 # but they are using a tiff which might have different properties?
@@ -596,8 +608,8 @@ class Steganographer:
                 bit_message[x] = 0
 
         chars = []
-        for b in range(0, int(math.ceil(len(bit_message) / 8))): 
-            byte = bit_message[b*8:(b+1)*8]
+        for b in range(0, int(math.ceil(len(bit_message) / 7))): 
+            byte = bit_message[b*7:(b+1)*7]
             chars.append(chr(int(''.join([str(bit) for bit in byte]), 2)))
         return ''.join(chars)
 
@@ -615,6 +627,7 @@ class Steganographer:
 
          # looping through each block
         for j in range(0, col_lim):
+            progress_bar(j, col_lim)
             for i in range(0, row_lim):
 
                 # run decodeBlock on each block
