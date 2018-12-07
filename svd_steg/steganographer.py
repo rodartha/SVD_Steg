@@ -287,7 +287,7 @@ class Steganographer:
             for i in range(row_lim):
 
                 # isolate the block
-                block = self.embedded_image[block_size*i:block_size*(i+1), j*block_size:block_size*(j+1)] - 127
+                block = self.embedded_image[block_size*i:block_size*(i+1), j*block_size:block_size*(j+1)]
 
 
                 # compute the SVD
@@ -337,7 +337,7 @@ class Steganographer:
 
 
                 print("original block: ")
-                print(block + 127)
+                print(block)
                 print()
 
 
@@ -441,10 +441,16 @@ class Steganographer:
                         block[x, y] = math.fabs(block[x, y])
                         """
 
+                        """
                         if block[x, y] > 128:
                             block[x, y] = 128
                         if block[x, y] < -127:
                             block[x, y] = -127
+                        """
+                        if block[x, y] > 255:
+                            block[x, y] = 255
+                        if block[x, y] < 0:
+                            block[x, y] = 0
 
                 print()
                 print("U_mk before reconstruction")
@@ -453,7 +459,6 @@ class Steganographer:
 
                 #block = numpy.round(U_mk.dot(S.dot(VT)))
                 block = block.astype(numpy.uint8)
-                block += 127
                 print("reconstructed block")
                 print(block)
                 print()
