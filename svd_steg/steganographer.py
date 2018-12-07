@@ -253,7 +253,7 @@ class Steganographer:
         #A = []
 
         # Set block size
-        block_size = 8
+        block_size = 4
         cols_protected = 1 # currently only works with 1, would be great to get 2 working
 
         num_rows = ((self.embedded_image).shape)[0]
@@ -261,7 +261,8 @@ class Steganographer:
 
         # bits per block
         # hardcoded for now for an 4x4 with 1 column protected matrix, math wasnt working quite right
-        bpb = 21
+        # When block size = 4 this = 3, when block size = 8 this = 21
+        bpb = 3
 
         # num blocks possible
         num_blocks = (num_rows * num_cols)/(block_size * block_size)
@@ -351,9 +352,12 @@ class Steganographer:
                 S_Prime = S
 
                 # Might be blocksize - 3 not 2
-                avg_dist = (S[1,1] + S[block_size-1,block_size-1])/(block_size-2);
+                # Have changed block_size in denominator and k inside of loop to be 
+                # - 0. they used to be - 1 and since there is only a minimal increase in
+                # accuracy we may want to revert.
+                avg_dist = (S[1,1] + S[block_size-1,block_size-1])/(block_size);
                 for k in range (2, block_size):
-                    S_Prime[k,k]= S[1,1] - (k-2)*avg_dist
+                    S_Prime[k,k]= S[1,1] - (k)*avg_dist
 
                 """
                 print("U-Matrix before embedding: ")
@@ -436,6 +440,7 @@ class Steganographer:
                         # FIXME: temp fix, obviously some form of negative error
                         block[x, y] = math.fabs(block[x, y])
                         """
+
                         if block[x, y] > 128:
                             block[x, y] = 128
                         if block[x, y] < -127:
@@ -586,8 +591,8 @@ class Steganographer:
                 bit_message[x] = 0
 
         chars = []
-        for b in range(int(math.floor(len(bit_message) / 7))):
-            byte = bit_message[b*7:(b+1)*7]
+        for b in range(0, int(math.ceil(len(bit_message) / 8))): 
+            byte = bit_message[b*8:(b+1)*8]
             chars.append(chr(int(''.join([str(bit) for bit in byte]), 2)))
         return ''.join(chars)
 
@@ -620,6 +625,8 @@ class Steganographer:
         file_split = self.image_file.split('.')
         file_ending = file_split[1]
         if file_ending == 'jpg':
+            self.image = self.image[:,:,0]
+        elif self.image.ndim == 3:
             self.image = self.image[:,:,0]
         self.embedded_image = self.image
 
