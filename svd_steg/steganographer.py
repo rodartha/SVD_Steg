@@ -572,7 +572,7 @@ class Steganographer:
         #block size is dim
         #loop from cols protected + 1 : (n/dim) - 1
         #read data from non protected cols
-        for i in range(cols_protected, cols -1):
+        for i in range(cols_protected, cols - 1):
             #first row always protected?
             for j in range(1, rows - i):
                 if (U_std[j][i] < 0):
@@ -609,8 +609,8 @@ class Steganographer:
         col_lim = math.floor(num_cols/block_size)
 
          # looping through each block
-        for j in range(col_lim):
-            for i in range(row_lim):
+        for j in range(0, col_lim):
+            for i in range(0, row_lim):
 
                 # run decodeBlock on each block
                 block = self.embedded_image[block_size*i:block_size*(i+1), j*block_size:block_size*(j+1)]
