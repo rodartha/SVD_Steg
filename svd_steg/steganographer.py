@@ -248,7 +248,7 @@ class Steganographer:
     def embed(self):
         """Embed message into an image."""
 
-        #A = []
+        redundancy = 3
 
         # Set block size
         block_size = 4
@@ -279,6 +279,7 @@ class Steganographer:
 
         # convert message to bits to be embeded (currenty only supports block size 8)
         binary_message_tmp = self.binarize_message()
+        binary_message_tmp *= redundancy
 
         #print("message to embed = " + str(binary_message_tmp))
         print("len to embed: " + str(len(binary_message_tmp)))
@@ -299,8 +300,7 @@ class Steganographer:
                 for i in range(row_lim):
 
                     # dont recont number of blocks being embedded
-                    if p == 0:
-                        num_blocks_embedded += 1
+
 
                     # isolate the block
                     block = self.embedded_image[block_size*i:block_size*(i+1), j*block_size:block_size*(j+1)]
@@ -354,6 +354,8 @@ class Steganographer:
                         break_second_loop = True
                         break
 
+                    if p == 0:
+                        num_blocks_embedded += 1
                     '''
                     print("original block: ")
                     print(block)
@@ -371,13 +373,12 @@ class Steganographer:
                     # for the embedding
                     U_mk = U
 
-                    # not sure why they do this, but its in the psuedocode (not sure if it is working)
                     S_Prime = S
 
-                    # Might be blocksize - 3 not 2
-                    # Have changed block_size in denominator and k inside of loop to be
-                    # - 0. they used to be - 1 and since there is only a minimal increase in
-                    # accuracy we may want to revert.
+                    # singular values are in order from greatest to least, so the largest
+                    # singular values have the most effect on the image, in order to minimize our changes \
+                    # we want every pixel we chnage to be average in terms of its change on the image
+                    # rather then one value changing a lot and the others almost none
                     avg_dist = (S[1,1] + S[block_size-1,block_size-1])/(block_size);
                     for k in range (2, block_size):
                         S_Prime[k,k]= S[1,1] - (k)*avg_dist
@@ -412,23 +413,12 @@ class Steganographer:
                         for x in range(0, block_size):
                             U_mk[x,m] /= norm_factor
 
+                    # assert orthogonal
                     try:
                         for x in range(0, block_size):
-                            #print(math.sqrt(dot(U_mk[0:block_size, x],U_mk[0:block_size, x])))
-
                             for y in range(0, block_size):
                                 if x != y:
-                                    '''
-                                    print("x: " + str(x))
-                                    print("y: " + str(y))
-                                    print()
-                                    '''
                                     dotprod = dot(U_mk[0:block_size, x], U_mk[0:block_size, y])
-                                    '''
-                                    print("dotprod = " + str(dotprod))
-                                    print()
-                                    '''
-
                                     assert(math.fabs(dotprod) < .000001)
 
                     except:
@@ -437,6 +427,7 @@ class Steganographer:
                         self.error_count += 1
                         continue
 
+                    # assert length 1
                     try:
                         for x in range(0, block_size):
                             vector_length = dot(U_mk[0:block_size, x], U_mk[0:block_size, x])
@@ -464,22 +455,10 @@ class Steganographer:
 
                     block = numpy.round(U_mk.dot(S_Prime.dot(VT)))
 
-                    # wasn't quite working, its to make sure all pixels within 0-255
-                    # but they are using a tiff which might have different properties?
+                    # ensure values are in valid range after modification
 
                     for x in range(0, block_size):
                         for y in range(0, block_size):
-                            """
-                            # FIXME: temp fix, obviously some form of negative error
-                            block[x, y] = math.fabs(block[x, y])
-                            """
-
-                            """
-                            if block[x, y] > 128:
-                                block[x, y] = 128
-                            if block[x, y] < -127:
-                                block[x, y] = -127
-                            """
                             if block[x, y] > 255:
                                 block[x, y] = 255
                             if block[x, y] < 0:
@@ -524,28 +503,59 @@ class Steganographer:
                 block = self.embedded_image[block_size*i:block_size*(i+1), j*block_size:block_size*(j+1)]
                 res = self.decodeBlock(block)
 
-                #print("recovered from block: " + str(res))
-
                 finalMessage += res
                 num_blocks_decoded += 1
 
-        self.message = self.convert_message_to_string(finalMessage)
 
-        for j in range(0,len(finalMessage)):
-            if finalMessage[j] == 0:
-                finalMessage[j] = -1
-
-        #print("embedded: ")
-        #print(binary_message_cpy)
         print()
         print("embedded length: " + str(len(binary_message_cpy)))
         print()
-        #print("recovered")
-        #print(finalMessage)
         print("length of recovered: " + str(len(finalMessage)))
         print()
 
-        for j in range(0,len(binary_message_cpy)):
+
+        ''' PROBLEMS '''
+        # need to implement this in the actual decode, need to know
+        # how long the message is, or just assume message is always the maximum block_size
+        # so we can implement redundancy correctly
+        # currently we know the message length so it is easy to figure out them
+        # adjusted result
+
+        # trim final message down in case we added a few extra bits
+        finalMessage = finalMessage[:len(binary_message_cpy)*redundancy]
+
+        # calculate the size of the actual message
+        tmp = int(len(finalMessage)/redundancy)
+
+        # construct array of the redundant messages
+        testArray = []
+        for j in range(0, redundancy):
+            testArray.append(finalMessage[j*tmp:((j+1)*tmp)])
+
+        print("actualy message length = " + str(tmp))
+        print()
+
+        # use a majority vote to decide what bit it should actually be
+        # based on the redundancy
+        for j in range(0, tmp):
+            test = 0
+            for i in range(0, redundancy):
+                test += testArray[i][j]
+
+            if test < 0:
+                finalMessage[j] = -1
+            else:
+                finalMessage[j] = 1
+
+        # trim the final message
+        finalMessage = finalMessage[:tmp]
+
+        self.message = self.convert_message_to_string(finalMessage)
+
+        for j in range(0, len(finalMessage)):
+            if finalMessage[j] == 0:
+                finalMessage[j] = -1
+            #print(binary_message_cpy[j])
             if finalMessage[j] == binary_message_cpy[j]:
                 self.recovered_correct += 1
             self.recovered_total += 1
