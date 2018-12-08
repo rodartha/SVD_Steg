@@ -69,6 +69,7 @@ class Steganographer:
 
     def binarize_message(self):
         """ Turn string into binary """
+        self.message.replace(" ", "_")
         binary_message = ''.join(format(ord(x), 'b') for x in self.message)
         binary_list = []
         for character in binary_message:
@@ -260,7 +261,7 @@ class Steganographer:
         # bits per block
         # hardcoded for now for an 4x4 with 1 column protected matrix, math wasnt working quite right
         # When block size = 4 this = 3, when block size = 8 this = 21
-        bpb = 3
+        bpb =  int(((block_size-cols_protected-1)*(block_size-cols_protected))/2);
 
         # num blocks possible
         num_blocks = (num_rows * num_cols)/(block_size * block_size)
@@ -271,11 +272,29 @@ class Steganographer:
         print("MAX IMAGE HIDING CAPACITY: " + str(img_cap))
         print()
 
+        max_message_cap_bits = math.floor(img_cap/redundancy)
+
+        print("MAX message CAPACITY in bits: " + str(max_message_cap_bits))
+        print()
+
+        max_message_cap_characters = math.floor(max_message_cap_bits / 7)
+
+        print("MAX message CAPACITY in characters: " + str(max_message_cap_characters))
+        print()
+
+        if len(self.message) > max_message_cap_characters:
+            print("MAX message CAPACITY in characters: " + str(max_message_cap_characters))
+            print()
+            exit()
+
+
         # calculate the maximum number of blocks per row/col
         row_lim = math.floor(num_rows/block_size)
         print("row_lim: " + str(row_lim))
         col_lim = math.floor(num_cols/block_size)
         print("col_lim: " + str(col_lim))
+
+
 
         # convert message to bits to be embeded (currenty only supports block size 8)
         binary_message_tmp = self.binarize_message()
