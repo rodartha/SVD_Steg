@@ -1,1 +1,1 @@
-For_this_project_we_wrote_a_Python_script_which_takes_an_image_and_converts_it_into_a_matrix_split_by_a_particular_blocksize_We_wrote_two_main_functions_which_embed_the_provided_message_and_then_extract_it_from_the_image_Our_algorithm_alters_the_Umatrix
+This is a test paragraph to see if we can achieve high results with more redundancy, will it work, who knows.
