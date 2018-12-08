@@ -624,6 +624,11 @@ class Steganographer:
             if bit_message[x] == -1:
                 bit_message[x] = 0
 
+        # Normalize bits
+        extra_bits = len(bit_message) % 7
+        for i in range(0, extra_bits):
+            bit_message.append(0)
+
         chars = []
         for b in range(0, int(math.ceil(len(bit_message) / 7))):
             byte = bit_message[b*7:(b+1)*7]
