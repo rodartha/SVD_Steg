@@ -143,7 +143,7 @@ class Steganographer:
             #print("num orthog bits: " + str(orthog_bits))
 
             # actually transplant the values into our coeff and sol matrices
-            # this is just actually taking hte values from testMatrix and placing
+            # this is just actually taking the values from testMatrix and placing
             # them in our matrices as described above
 
             # the rationale is that if our unkowns * the knowns in the left vectors = the -dot product of the knowns,
