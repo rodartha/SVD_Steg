@@ -249,7 +249,7 @@ class Steganographer:
     def embed(self):
         """Embed message into an image."""
 
-        redundancy = 3
+        redundancy = 9
 
         # Set block size
         block_size = 4
