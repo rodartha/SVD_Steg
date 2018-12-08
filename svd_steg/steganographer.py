@@ -69,10 +69,33 @@ class Steganographer:
 
     def binarize_message(self):
         """ Turn string into binary """
+
+        # sanitize inputs
         self.message = self.message.replace(" ", "_")
         self.message = self.message.replace(".", "")
         self.message = self.message.replace(",", "")
         self.message = self.message.replace("?", "")
+        self.message = self.message.replace("'", "")
+        self.message = self.message.replace('"', "")
+        self.message = self.message.replace('!', "")
+        self.message = self.message.replace('-', "_")
+        self.message = self.message.replace('=', "_equals_")
+        self.message = self.message.replace('+', "_plus_")
+        self.message = self.message.replace('@', "_at_")
+        self.message = self.message.replace('#', "_hashtag_")
+        self.message = self.message.replace('$', "_dollarsign_")
+        self.message = self.message.replace('%', "_percent_")
+        self.message = self.message.replace('^', "_carrot_")
+        self.message = self.message.replace('&', "_and_")
+        self.message = self.message.replace('*', "_star_")
+        self.message = self.message.replace('`', "")
+        self.message = self.message.replace('~', "_tilda_")
+        self.message = self.message.replace('/', "_forwardslash_")
+        self.message = self.message.replace('[', "_bracketopen_")
+        self.message = self.message.replace(']', "_bracketclose_")
+        self.message = self.message.replace('{', "_curlybracketopen_")
+        self.message = self.message.replace('}', "_curlybracketclose_")
+
         print(self.message)
         print()
         binary_message = ''.join(format(ord(x), 'b') for x in self.message)
@@ -545,6 +568,7 @@ class Steganographer:
         finalMessage = finalMessage[:tmp]
 
         self.message = self.convert_message_to_string(finalMessage)
+        self.message = self.message.replace("_", " ")
 
         for j in range(0, len(finalMessage)):
             if finalMessage[j] == 0:
