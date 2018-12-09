@@ -79,6 +79,8 @@ class Steganographer:
         self.message = self.message.replace('"', "")
         self.message = self.message.replace('!', "")
         self.message = self.message.replace('-', "_")
+
+        '''
         self.message = self.message.replace('=', "_equals_")
         self.message = self.message.replace('+', "_plus_")
         self.message = self.message.replace('@', "_at_")
@@ -95,8 +97,9 @@ class Steganographer:
         self.message = self.message.replace(']', "_bracketclose_")
         self.message = self.message.replace('{', "_curlybracketopen_")
         self.message = self.message.replace('}', "_curlybracketclose_")
+        '''
 
-        print(self.message)
+        print("embedding: " + self.message)
         print()
         binary_message = ''.join(format(ord(x), 'b') for x in self.message)
         binary_list = []
@@ -518,7 +521,7 @@ class Steganographer:
                     break
 
                 block = self.embedded_image[block_size*i:block_size*(i+1), j*block_size:block_size*(j+1)]
-                res = self.decodeBlock(block)
+                res = self.decodeBlock(block, cols_protected)
 
                 finalMessage += res
                 num_blocks_decoded += 1
@@ -579,10 +582,9 @@ class Steganographer:
             self.recovered_total += 1
 
 
-    def decodeBlock(self, block):
+    def decodeBlock(self, block, cols_protected):
         rows = block.shape[0]
         cols = block.shape[0]
-        cols_protected = 1
         temp_rec = []
         #get dimensions of image
         #calculate bits per block
@@ -606,7 +608,8 @@ class Steganographer:
         #loop from cols protected + 1 : (n/dim) - 1
         #read data from non protected cols
         for i in range(cols_protected, cols - 1):
-            #first row always protected?
+
+            #first row always protected
             for j in range(1, rows - i):
                 if (U_std[j][i] < 0):
                     temp_rec.append(-1)
